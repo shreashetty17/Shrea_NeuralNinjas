@@ -33,7 +33,8 @@ import {
   Unlock,
   Eye,
   EyeOff,
-  X
+  X,
+  UserCircle
 } from 'lucide-react';
 import { KaamSetuLogo } from './KaamSetuLogo';
 import { CustomerWorkerChat } from './CustomerWorkerChat';
@@ -134,7 +135,7 @@ export const BoltWorkerPortal = ({ onSwitchUser, lang = 'en', currentUser = null
     playAudioCue('bid_received');
   };
 
-  const [workerTab, setWorkerTab] = useState('orders'); // 'orders' | 'feed' | 'active_job' | 'chat' | 'earnings' | 'badges'
+  const [workerTab, setWorkerTab] = useState('orders'); // 'orders' | 'active_job' | 'chat' | 'earnings' | 'profile'
   const [isOnline, setIsOnline] = useState(true);
   const [isVoiceRecording, setIsVoiceRecording] = useState(false);
   const [recordedVoiceQuote, setRecordedVoiceQuote] = useState('');
@@ -234,6 +235,40 @@ export const BoltWorkerPortal = ({ onSwitchUser, lang = 'en', currentUser = null
     playAudioCue('match_success');
   };
 
+  // Worker types their own price for a request
+  const [bidPrices, setBidPrices] = useState({});
+  const [bidEtas, setBidEtas] = useState({});
+  const [bidErrors, setBidErrors] = useState({});
+  const handlePlaceBid = (reqId) => {
+    const amount = parseInt(bidPrices[reqId], 10);
+    if (!amount || amount <= 0) {
+      setBidErrors((p) => ({ ...p, [reqId]: 'Enter a price first.' }));
+      return;
+    }
+    const eta = bidEtas[reqId] || '15';
+    setBidsSubmitted((prev) => ({ ...prev, [reqId]: `Bid of ₹${amount} (arrive in ${eta} min) sent!` }));
+    playAudioCue('match_success');
+  };
+
+  // Profile: manage account details
+  const [profileForm, setProfileForm] = useState(() => ({
+    name: currentUser?.name || '',
+    phone: currentUser?.phone || '',
+    email: currentUser?.email || '',
+    locality: currentUser?.locality || '',
+    tradeLabel: currentUser?.tradeLabel || currentUser?.trade || '',
+    experience: currentUser?.experience || '',
+    upiId: currentUser?.upiId || '',
+    languages: currentUser?.languages || ''
+  }));
+  const [profileToast, setProfileToast] = useState('');
+  const handleSaveProfile = (e) => {
+    e.preventDefault();
+    if (currentUser) saveUser({ ...currentUser, ...profileForm });
+    setProfileToast('Saved');
+    setTimeout(() => setProfileToast(''), 3000);
+  };
+
   // Doorstep OTP Verification Handler
   const handleVerifyOtp = (orderId, targetOtp) => {
     const entered = (enteredOtps[orderId] || '').trim();
@@ -287,9 +322,6 @@ export const BoltWorkerPortal = ({ onSwitchUser, lang = 'en', currentUser = null
             {/* Logo + Pro Badge */}
             <div className="flex items-center gap-2">
               <KaamSetuLogo size="md" />
-              <span className="text-[10px] font-black uppercase tracking-wider bg-secondary-100 text-secondary-800 border border-secondary-200 px-2 py-0.5 rounded-md">
-                {t.workerProTitle || 'Worker Pro'}
-              </span>
             </div>
 
             {/* Worker Navigation Tabs */}
@@ -318,21 +350,6 @@ export const BoltWorkerPortal = ({ onSwitchUser, lang = 'en', currentUser = null
               </button>
 
               <button
-                onClick={() => setWorkerTab('feed')}
-                className={`px-3.5 py-2 rounded-xl flex items-center gap-1.5 transition-all ${
-                  workerTab === 'feed'
-                    ? 'bg-white text-slate-900 shadow-xs font-extrabold'
-                    : 'text-slate-600 hover:text-slate-900'
-                }`}
-              >
-                <Radio className="w-3.5 h-3.5 text-secondary-600" />
-                <span>{t.workerTabFeed || 'Job Feed'}</span>
-                <span className="w-4 h-4 bg-secondary-600 text-white rounded-full text-[9px] flex items-center justify-center font-bold">
-                  3
-                </span>
-              </button>
-
-              <button
                 onClick={() => setWorkerTab('active_job')}
                 className={`px-3.5 py-2 rounded-xl flex items-center gap-1.5 transition-all ${
                   workerTab === 'active_job'
@@ -342,19 +359,6 @@ export const BoltWorkerPortal = ({ onSwitchUser, lang = 'en', currentUser = null
               >
                 <Navigation className="w-3.5 h-3.5 text-primary-600" />
                 <span>{t.workerTabActiveJob || 'Active Job & Map'}</span>
-              </button>
-
-              <button
-                onClick={() => setWorkerTab('chat')}
-                className={`px-3.5 py-2 rounded-xl flex items-center gap-1.5 transition-all ${
-                  workerTab === 'chat'
-                    ? 'bg-white text-slate-900 shadow-xs font-extrabold'
-                    : 'text-slate-600 hover:text-slate-900'
-                }`}
-              >
-                <MessageSquare className="w-3.5 h-3.5 text-emerald-600" />
-                <span>{t.workerTabChat || 'Customer Chat'}</span>
-                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
               </button>
 
               <button
@@ -375,18 +379,6 @@ export const BoltWorkerPortal = ({ onSwitchUser, lang = 'en', currentUser = null
                 ) : (
                   <Lock className="w-3 h-3 text-amber-500 ml-0.5" />
                 )}
-              </button>
-
-              <button
-                onClick={() => setWorkerTab('badges')}
-                className={`px-3.5 py-2 rounded-xl flex items-center gap-1.5 transition-all ${
-                  workerTab === 'badges'
-                    ? 'bg-white text-slate-900 shadow-xs font-extrabold'
-                    : 'text-slate-600 hover:text-slate-900'
-                }`}
-              >
-                <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
-                <span>{t.workerTabBadges || 'My Badges'}</span>
               </button>
             </nav>
 
@@ -431,16 +423,23 @@ export const BoltWorkerPortal = ({ onSwitchUser, lang = 'en', currentUser = null
                 <span>{isOnline ? (t.workerOnline || 'Online') : (t.workerOffline || 'Offline')}</span>
               </button>
 
-              {/* Profile Chip with Switch */}
-              <div
-                onClick={onSwitchUser}
-                className="flex items-center gap-2 py-1.5 px-3 rounded-full bg-slate-100 hover:bg-slate-200/80 border border-slate-200 text-xs font-semibold text-slate-700 cursor-pointer transition-colors"
-                title="Switch to customer or sign in as another user"
+              {/* Profile icon: opens worker profile */}
+              <button
+                onClick={() => setWorkerTab('profile')}
+                title="My profile"
+                aria-label="My profile"
+                className={`w-10 h-10 rounded-full flex items-center justify-center border-2 transition-colors overflow-hidden ${
+                  workerTab === 'profile'
+                    ? 'border-[#149B8B] bg-[#149B8B]/10 text-[#149B8B]'
+                    : 'border-slate-200 bg-slate-100 hover:bg-slate-200 text-[#0A2540]'
+                }`}
               >
-                <div className="w-2 h-2 rounded-full bg-secondary-600" />
-                <span className="font-bold text-slate-900">{workerName}</span>
-                <span className="text-[10px] text-secondary-600 font-bold underline ml-1">Switch</span>
-              </div>
+                {currentUser?.avatar ? (
+                  <img src={currentUser.avatar} alt={workerName} className="w-full h-full object-cover" />
+                ) : (
+                  <UserCircle className="w-6 h-6" />
+                )}
+              </button>
 
             </div>
 
@@ -450,11 +449,8 @@ export const BoltWorkerPortal = ({ onSwitchUser, lang = 'en', currentUser = null
           <div className="lg:hidden flex items-center gap-1 overflow-x-auto py-2 border-t border-slate-100 no-scrollbar text-xs font-bold text-slate-600">
             {[
               { id: 'orders', label: `${t.workerTabOrders || 'My Orders'} (${pendingOtpOrders.length > 0 ? `${pendingOtpOrders.length} OTP` : orders.length})` },
-              { id: 'feed', label: t.workerTabFeed || 'Job Feed' },
               { id: 'active_job', label: t.workerTabActiveJob || 'Active Job' },
-              { id: 'chat', label: t.workerTabChat || 'Chat' },
-              { id: 'earnings', label: `${t.workerTabEarnings || 'Earnings'} (${isBalanceRevealed ? `₹${currentWalletBalance.toLocaleString()}` : '₹*****'})` },
-              { id: 'badges', label: t.workerTabBadges || 'Badges' }
+              { id: 'earnings', label: `${t.workerTabEarnings || 'Earnings'} (${isBalanceRevealed ? `₹${currentWalletBalance.toLocaleString()}` : '₹*****'})` }
             ].map((tab) => (
               <button
                 key={tab.id}
@@ -482,30 +478,107 @@ export const BoltWorkerPortal = ({ onSwitchUser, lang = 'en', currentUser = null
         {workerTab === 'orders' && (
           <div className="space-y-6 animate-in fade-in">
             
-            {/* Top Dashboard Summary Card */}
-            <div className="bg-white border border-slate-200/90 rounded-3xl p-6 sm:p-8 shadow-bolt-sm flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
-              <div className="space-y-1">
-                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-secondary-100 text-secondary-800 text-xs font-bold uppercase tracking-wider">
-                  <Package className="w-3.5 h-3.5" />
-                  <span>{t.workerProTitle || 'Worker Job Operations'}</span>
+            {/* New requests: worker sets their own bid price */}
+            <div className="bg-white border border-slate-200/90 rounded-3xl p-6 sm:p-8 shadow-bolt-sm space-y-5">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div>
+                  <h2 className="text-xl font-display font-bold text-slate-900">New requests near you</h2>
+                  <p className="text-xs text-slate-500 mt-0.5">Enter your price and send a bid. The customer picks the offer they like.</p>
                 </div>
-                <h1 className="text-2xl sm:text-3xl font-display font-bold text-slate-900">
-                  {t.workerOrdersTitle || 'My Orders & Doorstep OTP Verification'}
-                </h1>
-                <p className="text-xs sm:text-sm text-slate-500 max-w-xl">
-                  {t.workerOrdersSubtitle || 'Take the 4-digit Start OTP from the customer upon reaching their door. Entering the correct OTP verifies customer identity and confirms the job start.'}
-                </p>
+                <span className="self-start sm:self-center flex items-center gap-1.5 text-xs text-emerald-800 font-bold bg-emerald-100 px-3 py-1.5 rounded-xl border border-emerald-200">
+                  <Radio className="w-3.5 h-3.5 animate-pulse text-emerald-600" />
+                  {openRequests.length} open
+                </span>
               </div>
 
-              {/* Sync Button */}
-              <button
-                onClick={refreshOrders}
-                className="px-4 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold border border-slate-200 flex items-center gap-2 transition-all shrink-0 shadow-xs"
-                title="Sync with Customer Page"
-              >
-                <RefreshCw className="w-3.5 h-3.5 text-primary-600" />
-                <span>{t.workerSyncRealTime || 'Sync Real-Time'}</span>
-              </button>
+              <div className="grid grid-cols-1 gap-4">
+                {openRequests.map((req) => (
+                  <div key={req.id} className="p-5 rounded-2xl bg-slate-50/70 border border-slate-200 space-y-4">
+                    <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
+                      <div className="space-y-1">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="text-[11px] font-bold uppercase text-primary-800 bg-primary-100 px-2 py-0.5 rounded border border-primary-200">
+                            {req.category}
+                          </span>
+                          {req.urgent && (
+                            <span className="text-[10px] font-bold uppercase text-rose-800 bg-rose-100 px-2 py-0.5 rounded border border-rose-200">
+                              Urgent
+                            </span>
+                          )}
+                          <span className="text-xs text-slate-400">• {req.postedAgo}</span>
+                        </div>
+                        <h3 className="text-base font-display font-bold text-slate-900">{req.title}</h3>
+                        <p className="text-xs text-slate-600">{req.description}</p>
+                        <p className="text-[11px] text-slate-500 flex items-center gap-1">
+                          <MapPin className="w-3.5 h-3.5 text-slate-400" /> {req.locality} ({req.distance})
+                        </p>
+                      </div>
+                      <div className="sm:text-right shrink-0">
+                        <span className="text-[11px] text-slate-400 block">Customer budget</span>
+                        <span className="text-lg font-display font-bold text-slate-900">{req.budgetRange}</span>
+                      </div>
+                    </div>
+
+                    {bidsSubmitted[req.id] ? (
+                      <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-xs font-bold text-emerald-800 flex flex-wrap items-center justify-between gap-2">
+                        <span className="flex items-center gap-2">
+                          <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                          {bidsSubmitted[req.id]} Waiting for the customer to accept.
+                        </span>
+                        <button
+                          onClick={() => setBidsSubmitted((p) => { const n = { ...p }; delete n[req.id]; return n; })}
+                          className="text-[11px] underline text-emerald-700"
+                        >
+                          Change bid
+                        </button>
+                      </div>
+                    ) : (
+                      <form
+                        onSubmit={(e) => { e.preventDefault(); handlePlaceBid(req.id); }}
+                        className="pt-3 border-t border-slate-200 flex flex-col sm:flex-row items-stretch sm:items-end gap-3"
+                      >
+                        <label className="block">
+                          <span className="text-[11px] font-bold text-slate-600 block mb-1">Your price (₹)</span>
+                          <div className="relative">
+                            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-sm">₹</span>
+                            <input
+                              type="number"
+                              min="1"
+                              inputMode="numeric"
+                              placeholder="e.g. 350"
+                              value={bidPrices[req.id] || ''}
+                              onChange={(e) => {
+                                setBidPrices((p) => ({ ...p, [req.id]: e.target.value }));
+                                setBidErrors((p) => ({ ...p, [req.id]: '' }));
+                              }}
+                              className="w-full sm:w-36 pl-7 pr-3 py-2.5 rounded-xl bg-white border border-slate-300 focus:ring-2 focus:ring-[#149B8B] text-sm font-bold text-slate-900"
+                            />
+                          </div>
+                        </label>
+                        <label className="block">
+                          <span className="text-[11px] font-bold text-slate-600 block mb-1">Arrive in</span>
+                          <select
+                            value={bidEtas[req.id] || '15'}
+                            onChange={(e) => setBidEtas((p) => ({ ...p, [req.id]: e.target.value }))}
+                            className="w-full sm:w-32 px-3 py-2.5 rounded-xl bg-white border border-slate-300 text-sm text-slate-900"
+                          >
+                            {['10', '15', '20', '30', '45', '60'].map((m) => (
+                              <option key={m} value={m}>{m} min</option>
+                            ))}
+                          </select>
+                        </label>
+                        <button type="submit" className="btn-primary text-xs px-5 py-3 shadow-sm flex items-center justify-center gap-1.5">
+                          <ArrowRight className="w-3.5 h-3.5" />
+                          <span>Send bid</span>
+                        </button>
+                        {bidErrors[req.id] && (
+                          <span className="text-[11px] font-bold text-rose-600 self-center">{bidErrors[req.id]}</span>
+                        )}
+                      </form>
+                    )}
+                  </div>
+                ))}
+              </div>
             </div>
 
             {/* Quick Metrics Strip */}
@@ -576,12 +649,6 @@ export const BoltWorkerPortal = ({ onSwitchUser, lang = 'en', currentUser = null
                 <p className="text-xs text-slate-500 max-w-sm mx-auto">
                   {t.workerNoOrdersSub || 'New job bids and customer assignments will automatically appear here.'}
                 </p>
-                <button
-                  onClick={() => setWorkerTab('feed')}
-                  className="btn-primary text-xs px-5 py-2.5 shadow-sm"
-                >
-                  {t.workerViewFeedBtn || 'View Job Feed to Place Bids'}
-                </button>
               </div>
             ) : (
               <div className="grid grid-cols-1 gap-6">
@@ -868,170 +935,6 @@ export const BoltWorkerPortal = ({ onSwitchUser, lang = 'en', currentUser = null
         )}
 
         {/* ======================================================== */}
-        {/* TAB 2: JOB FEED */}
-        {/* ======================================================== */}
-        {workerTab === 'feed' && (
-          <div className="space-y-8 animate-in fade-in">
-            
-            {/* Worker Welcome Card */}
-            <div className="bg-white border border-slate-200/90 rounded-3xl p-6 sm:p-8 shadow-bolt-md flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
-              <div className="flex items-center gap-4">
-                <img
-                  src="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=250&q=80"
-                  alt={workerName}
-                  className="w-16 h-16 rounded-2xl object-cover border-2 border-primary-500 shadow-sm"
-                />
-                <div>
-                  <div className="flex items-center gap-2">
-                    <h2 className="text-2xl font-display font-bold text-slate-900">{workerName}</h2>
-                    <span className="text-xs bg-emerald-100 text-emerald-800 font-bold px-2 py-0.5 rounded-full border border-emerald-200">
-                      Master Plumber
-                    </span>
-                  </div>
-                  <p className="text-xs text-slate-500 mt-0.5">
-                    Lokhandwala & Bandra West • 42 jobs completed • 100% on-time SLA
-                  </p>
-                </div>
-              </div>
-
-              <div className="flex items-center gap-3">
-                <div className="p-3 bg-slate-50 rounded-2xl border border-slate-200 text-center min-w-[130px]">
-                  <span className="text-[10px] text-slate-400 uppercase font-bold block">Wallet Balance</span>
-                  <div className="flex items-center justify-center gap-1.5 mt-0.5">
-                    <span className="text-xl font-display font-bold text-slate-900 tracking-wide">
-                      {isBalanceRevealed ? `₹${currentWalletBalance.toLocaleString()}` : '₹*****'}
-                    </span>
-                    {isBalanceRevealed ? (
-                      <button
-                        onClick={handleHideBalance}
-                        title="Hide balance (Lock as *****)"
-                        className="p-1 rounded-lg hover:bg-slate-200 text-slate-400 hover:text-slate-600 transition-colors"
-                      >
-                        <EyeOff className="w-3.5 h-3.5" />
-                      </button>
-                    ) : (
-                      <button
-                        onClick={() => setIsPasswordModalOpen(true)}
-                        title="Enter password to check balance"
-                        className="p-1 rounded-lg bg-amber-100 hover:bg-amber-200 text-amber-800 transition-colors"
-                      >
-                        <Lock className="w-3.5 h-3.5" />
-                      </button>
-                    )}
-                  </div>
-                </div>
-                {isBalanceRevealed ? (
-                  <button
-                    onClick={() => setWorkerTab('earnings')}
-                    className="btn-primary text-xs px-4 py-3 shadow-xs"
-                  >
-                    <span>Withdraw UPI</span>
-                  </button>
-                ) : (
-                  <button
-                    onClick={() => setIsPasswordModalOpen(true)}
-                    className="px-4 py-3 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs shadow-xs flex items-center gap-1.5 transition-all active:scale-95"
-                  >
-                    <KeyRound className="w-3.5 h-3.5" />
-                    <span>{t.workerCheckBalance || 'Check Balance'}</span>
-                  </button>
-                )}
-              </div>
-            </div>
-
-            {/* Broadcasts Header */}
-            <div className="flex items-center justify-between">
-              <div>
-                <h3 className="text-xl font-display font-bold text-slate-900">
-                  {t.workerLiveRequestsTitle || 'Live Customer Requests Near You'}
-                </h3>
-                <p className="text-xs text-slate-500 mt-0.5">
-                  {t.workerLiveRequestsSub || 'Customers in your 3 km radius waiting for bids. Submit quick quote or tap mic to speak in Marathi/Hindi.'}
-                </p>
-              </div>
-
-              <div className="flex items-center gap-1.5 text-xs text-emerald-800 font-bold bg-emerald-100 px-3 py-1.5 rounded-xl border border-emerald-200">
-                <Radio className="w-3.5 h-3.5 animate-pulse text-emerald-600" />
-                <span>3 {t.workerActiveBroadcasts || 'Active Broadcasts'}</span>
-              </div>
-            </div>
-
-            {/* Requests List */}
-            <div className="grid grid-cols-1 gap-4">
-              {openRequests.map((req) => (
-                <div
-                  key={req.id}
-                  className="p-6 rounded-3xl bg-white border border-slate-200/90 hover:border-primary-400 shadow-bolt-sm transition-all space-y-4"
-                >
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                    <div className="space-y-1">
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs font-bold uppercase text-primary-800 bg-primary-100 px-2 py-0.5 rounded border border-primary-200">
-                          {req.category}
-                        </span>
-                        {req.urgent && (
-                          <span className="text-[10px] font-bold uppercase text-rose-800 bg-rose-100 px-2 py-0.5 rounded border border-rose-200">
-                            {t.workerUrgentSla || 'Urgent (< 30 min)'}
-                          </span>
-                        )}
-                        <span className="text-xs text-slate-400">• {req.postedAgo}</span>
-                      </div>
-
-                      <h4 className="text-lg font-display font-bold text-slate-900">
-                        {req.title}
-                      </h4>
-                      <p className="text-xs text-slate-600">
-                        {req.description}
-                      </p>
-                    </div>
-
-                    <div className="text-right sm:self-center shrink-0">
-                      <span className="text-[11px] text-slate-400 block">{t.workerCustomerTargetBudget || 'Customer Target Budget'}</span>
-                      <span className="text-xl font-display font-bold text-slate-900">{req.budgetRange}</span>
-                      <span className="text-[11px] text-slate-500 block">{req.locality} ({req.distance})</span>
-                    </div>
-                  </div>
-
-                  {/* Actions & Voice Quote Button */}
-                  <div className="pt-4 border-t border-slate-100 flex flex-wrap items-center justify-between gap-3">
-                    <div className="flex items-center gap-2">
-                      <button
-                        onClick={() => handleQuickBid(req.id, 320)}
-                        className="px-3.5 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-bold border border-slate-200 transition-colors"
-                      >
-                        Bid ₹320 (15 min)
-                      </button>
-                      <button
-                        onClick={() => handleQuickBid(req.id, 380)}
-                        className="px-3.5 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-bold border border-slate-200 transition-colors"
-                      >
-                        Bid ₹380 (10 min)
-                      </button>
-                    </div>
-
-                    <button
-                      onClick={() => handleSimulateVoiceBid(req.id)}
-                      className="px-4 py-2 rounded-xl btn-secondary text-xs flex items-center gap-1.5 shadow-sm"
-                    >
-                      <Mic className="w-3.5 h-3.5" />
-                      <span>{t.workerSpeakVoiceQuote || 'Speak Voice Quote (मराठी / हिंदी)'}</span>
-                    </button>
-                  </div>
-
-                  {bidsSubmitted[req.id] && (
-                    <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-xs font-bold text-emerald-800 flex items-center gap-2">
-                      <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-                      <span>{bidsSubmitted[req.id]} Awaiting customer acceptance.</span>
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
-
-          </div>
-        )}
-
-        {/* ======================================================== */}
         {/* TAB 3: ACTIVE JOB & MAP */}
         {/* ======================================================== */}
         {workerTab === 'active_job' && (
@@ -1059,12 +962,6 @@ export const BoltWorkerPortal = ({ onSwitchUser, lang = 'en', currentUser = null
                     className="btn-primary text-xs px-5 py-2.5 shadow-sm"
                   >
                     {t.workerFilterAll || 'View All Orders'}
-                  </button>
-                  <button
-                    onClick={() => setWorkerTab('feed')}
-                    className="px-5 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold border border-slate-300"
-                  >
-                    {t.workerReturnFeed || 'Return to Job Feed'}
                   </button>
                 </div>
               </div>
@@ -1380,62 +1277,84 @@ export const BoltWorkerPortal = ({ onSwitchUser, lang = 'en', currentUser = null
         )}
 
         {/* ======================================================== */}
-        {/* TAB 6: BADGES & VERIFICATION */}
+        {/* PROFILE: WORKER DETAILS, MANAGE ACCOUNT & DOCUMENTS */}
         {/* ======================================================== */}
-        {workerTab === 'badges' && (
-          <div className="space-y-6 animate-in fade-in">
-            {/* Trust Badges Card */}
-            <div className="bg-white p-8 rounded-3xl border border-slate-200/90 shadow-bolt-md space-y-6">
-              <div>
-                <h3 className="text-2xl font-display font-bold text-slate-900">
-                  {workerName}'s {t.workerTabBadges || 'Trust Credentials'}
-                </h3>
-                <p className="text-xs text-slate-500 mt-1">
-                  Dual-tier verified credentials (Government ID & Police Clearance) displayed to customers across Mumbai.
-                </p>
-              </div>
-
-              {/* Strict 2-Tier Badges: Tier 1 & Tier 2 Only (Tier 3 & Tier 4 Removed as requested) */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="p-5 rounded-2xl bg-emerald-50/70 border border-emerald-200 flex items-start gap-3.5 shadow-2xs">
-                  <div className="p-2 rounded-xl bg-emerald-100 text-emerald-700 shrink-0 mt-0.5">
-                    <ShieldCheck className="w-5 h-5 text-emerald-600" />
+        {workerTab === 'profile' && (
+          <div className="max-w-4xl mx-auto space-y-6 animate-in fade-in">
+            {/* Profile header */}
+            <div className="bg-white p-6 sm:p-8 rounded-3xl border border-slate-200/90 shadow-bolt-md flex flex-col sm:flex-row items-start sm:items-center justify-between gap-5">
+              <div className="flex items-center gap-4">
+                {currentUser?.avatar ? (
+                  <img src={currentUser.avatar} alt={workerName} className="w-20 h-20 rounded-2xl object-cover border-2 border-[#149B8B]" />
+                ) : (
+                  <div className="w-20 h-20 rounded-2xl bg-[#0A2540] text-white flex items-center justify-center text-3xl font-display font-black">
+                    {(workerName || 'W').charAt(0).toUpperCase()}
                   </div>
-                  <div className="space-y-1">
-                    <div className="flex items-center gap-2">
-                      <h4 className="font-bold text-xs sm:text-sm text-slate-900">
-                        {t.workerBadgeTier1Title || 'Tier 1: Government ID / Aadhaar Verified'}
-                      </h4>
-                      <span className="text-[10px] bg-emerald-100 text-emerald-800 font-bold px-1.5 py-0.2 rounded">
-                        Active
-                      </span>
-                    </div>
-                    <p className="text-[11px] text-slate-600">
-                      DigiLocker Linked: {govtIdDoc} • UIDAI e-KYC Complete
-                    </p>
+                )}
+                <div className="space-y-1">
+                  <h1 className="text-2xl font-display font-bold text-slate-900">{workerName}</h1>
+                  <div className="flex flex-wrap items-center gap-2 text-xs">
+                    <span className="px-2.5 py-0.5 rounded-full bg-[#149B8B]/10 text-[#0f7a6e] font-bold border border-[#149B8B]/30">
+                      {currentUser?.tradeLabel || currentUser?.trade || 'Worker'}
+                    </span>
+                    <span className="px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 font-bold border border-emerald-200 flex items-center gap-1">
+                      <ShieldCheck className="w-3 h-3" /> Verified
+                    </span>
                   </div>
-                </div>
-
-                <div className="p-5 rounded-2xl bg-emerald-50/70 border border-emerald-200 flex items-start gap-3.5 shadow-2xs">
-                  <div className="p-2 rounded-xl bg-emerald-100 text-emerald-700 shrink-0 mt-0.5">
-                    <ShieldCheck className="w-5 h-5 text-emerald-600" />
-                  </div>
-                  <div className="space-y-1">
-                    <div className="flex items-center gap-2">
-                      <h4 className="font-bold text-xs sm:text-sm text-slate-900">
-                        {t.workerBadgeTier2Title || 'Tier 2: Police Criminal Clearance Verified'}
-                      </h4>
-                      <span className="text-[10px] bg-emerald-100 text-emerald-800 font-bold px-1.5 py-0.2 rounded">
-                        Clean Record
-                      </span>
-                    </div>
-                    <p className="text-[11px] text-slate-600">
-                      Mumbai Police Special Branch ID: MUM-POL-2026-8812 • Verified
-                    </p>
-                  </div>
+                  <p className="text-xs text-slate-500">
+                    {orders.filter((o) => o.status === 'completed').length} jobs completed
+                    {currentUser?.createdAt ? ` • Member since ${new Date(currentUser.createdAt).toLocaleDateString()}` : ''}
+                  </p>
                 </div>
               </div>
+              <button
+                onClick={onSwitchUser}
+                className="px-5 py-2.5 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 text-xs font-bold flex items-center gap-2 transition-colors"
+              >
+                <LogOut className="w-4 h-4" />
+                <span>Log out</span>
+              </button>
             </div>
+
+            {/* Manage account */}
+            <form onSubmit={handleSaveProfile} className="bg-white p-6 sm:p-8 rounded-3xl border border-slate-200/90 shadow-bolt-md space-y-5">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-4 border-b border-slate-100">
+                <div>
+                  <h3 className="text-xl font-display font-bold text-slate-900">Manage account</h3>
+                  <p className="text-xs text-slate-500 mt-1">Keep your details up to date so customers can reach you.</p>
+                </div>
+                {profileToast && (
+                  <span className="px-3 py-1.5 rounded-xl bg-emerald-50 border border-emerald-300 text-xs font-bold text-emerald-800 flex items-center gap-1.5">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-600" /> {profileToast}
+                  </span>
+                )}
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {[
+                  { key: 'name', label: 'Full name', type: 'text' },
+                  { key: 'phone', label: 'Phone number', type: 'tel' },
+                  { key: 'email', label: 'Email', type: 'email' },
+                  { key: 'locality', label: 'Area / Locality', type: 'text' },
+                  { key: 'tradeLabel', label: 'Work / Trade', type: 'text' },
+                  { key: 'experience', label: 'Experience (years)', type: 'number' },
+                  { key: 'upiId', label: 'UPI ID (for payments)', type: 'text' },
+                  { key: 'languages', label: 'Languages spoken', type: 'text' }
+                ].map((f) => (
+                  <label key={f.key} className="space-y-1.5 block">
+                    <span className="text-xs font-bold text-slate-700">{f.label}</span>
+                    <input
+                      type={f.type}
+                      value={profileForm[f.key] || ''}
+                      onChange={(e) => setProfileForm((p) => ({ ...p, [f.key]: e.target.value }))}
+                      className="w-full px-4 py-2.5 rounded-xl bg-slate-50 border border-slate-300 focus:ring-2 focus:ring-[#149B8B] text-sm text-slate-900"
+                    />
+                  </label>
+                ))}
+              </div>
+              <div className="flex justify-end">
+                <button type="submit" className="btn-primary text-xs px-6 py-3 shadow-sm">Save changes</button>
+              </div>
+            </form>
 
             {/* MANDATORY DOCUMENT VAULT: GOVERNMENT ID & POLICE CLEARANCE UPLOAD SECTION */}
             <div className="bg-white p-8 rounded-3xl border border-slate-200/90 shadow-bolt-md space-y-6">
