@@ -1,295 +1,130 @@
-// KaamSetu Persistent Database Service (Local Engine)
-// Persists Users, Multiple Bookings, and Chat Threads across sessions
+// KaamSetu Database Service: Supabase is the single source of truth.
+// Users, bookings, workers, service categories and chat messages all live in Supabase.
+// loadDatabase() must finish before the app renders (see main.jsx); after that the
+// data is kept in memory and refreshed from Supabase every few seconds.
 
-import { WORKERS_DATABASE } from '../data/mockData';
+import { SERVICE_CATEGORIES, WORKERS_DATABASE } from '../data/mockData';
 import { upsert, insert, select, hasPendingWrites } from './supabase';
 
-const USERS_STORAGE_KEY = 'kaamsetu_db_users';
-const BOOKINGS_STORAGE_KEY = 'kaamsetu_db_bookings';
-const MESSAGES_STORAGE_KEY = 'kaamsetu_db_messages';
+export const DB_SYNC_EVENT = 'kaamsetu-db-sync';
 
-// Initial pre-seeded demo users with uploaded documents
-const INITIAL_USERS = [
-  {
-    id: 'user_cust_1',
-    role: 'customer',
-    name: 'Priya Sharma',
-    phone: '+91 98200 44102',
-    email: 'priya.sharma@example.com',
-    locality: 'Pali Hill, Bandra West, Mumbai',
-    documentName: 'Aadhaar_Priya_Sharma.pdf',
-    documentType: 'Aadhaar Card',
-    documentUploadedAt: '2026-10-20T10:00:00.000Z',
-    isVerified: true,
-    avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=250&q=80'
-  },
-  {
-    id: 'user_work_1',
-    role: 'worker',
-    name: 'Rajesh Kumar',
-    phone: '+91 98201 44521',
-    email: 'rajesh.plumber@example.com',
-    locality: 'Lokhandwala, Andheri West, Mumbai',
-    trade: 'Plumbing',
-    tradeLabel: 'Senior Master Plumber',
-    documentName: 'Govt_ID_NSDC_Rajesh.pdf',
-    documentType: 'NSDC Skill Certificate + Aadhaar',
-    documentUploadedAt: '2026-10-18T14:30:00.000Z',
-    isVerified: true,
-    password: '1234',
-    avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=250&q=80'
-  }
-];
+// In-memory copy of what is in Supabase. Never persisted in the browser.
+let users = [];
+let bookings = [];
+let sessionUser = null;
 
-// Initial pre-seeded multiple bookings for the customer
-const INITIAL_BOOKINGS = [
-  {
-    id: 'bk_101',
-    category: 'plumbing',
-    categoryName: 'Plumbing',
-    title: 'Kitchen Faucet Cartridge Leakage',
-    description: 'Master bathroom diverter cartridge leaking into cabinet. Needs replacement.',
-    address: 'Flat 402, Sea Green Apts, Pali Hill, Bandra West',
-    urgency: 'Immediate (< 30 min)',
-    timingSlot: {
-      type: 'immediate',
-      date: 'Today',
-      timeSlot: 'Immediate (< 30 min)',
-      exactTime: '18:45'
-    },
-    budgetRange: { min: 250, max: 450 },
-    quoteAmount: 350,
-    status: 'en_route', // 'bidding' | 'en_route' | 'scheduled' | 'in_progress' | 'completed'
-    worker: WORKERS_DATABASE[0], // Rameshwar Jadhav
-    startOtp: '4829',
-    etaMins: 8,
-    distanceKm: 1.2,
-    escrowLocked: true,
-    createdAt: new Date(Date.now() - 25 * 60 * 1000).toISOString()
-  },
-  {
-    id: 'bk_102',
-    category: 'electrical',
-    categoryName: 'Electrical',
-    title: 'Main Hall MCB Tripping Continuously',
-    description: '32A breaker trips whenever the 1.5 ton split AC runs over 20 minutes.',
-    address: 'Flat 402, Sea Green Apts, Pali Hill, Bandra West',
-    urgency: 'Scheduled Slot',
-    timingSlot: {
-      type: 'scheduled',
-      date: 'Tomorrow',
-      timeSlot: 'Morning (10:00 AM - 12:00 PM)',
-      exactTime: '10:30 AM'
-    },
-    budgetRange: { min: 350, max: 550 },
-    quoteAmount: 420,
-    status: 'scheduled',
-    worker: WORKERS_DATABASE[2], // Farooq Ansari (Electrician)
-    startOtp: '7194',
-    etaMins: 45,
-    distanceKm: 2.4,
-    escrowLocked: true,
-    createdAt: new Date(Date.now() - 3 * 3600 * 1000).toISOString()
-  },
-  {
-    id: 'bk_103',
-    category: 'cleaning',
-    categoryName: 'House Maid & Cleaning',
-    title: 'Deep Kitchen Degreasing & Exhaust Fan',
-    description: 'Heavy oil stains on wall tiles and chimney filter degreased with eco-friendly chemical.',
-    address: 'Flat 402, Sea Green Apts, Pali Hill, Bandra West',
-    urgency: 'Completed',
-    timingSlot: {
-      type: 'scheduled',
-      date: 'Yesterday',
-      timeSlot: 'Afternoon (02:00 PM - 04:00 PM)',
-      exactTime: '02:15 PM'
-    },
-    budgetRange: { min: 400, max: 600 },
-    quoteAmount: 500,
-    status: 'completed',
-    worker: WORKERS_DATABASE[1], // Sunita Devi Vishwakarma
-    startOtp: '3921',
-    etaMins: 0,
-    distanceKm: 2.1,
-    escrowLocked: false,
-    completedAt: new Date(Date.now() - 26 * 3600 * 1000).toISOString(),
-    createdAt: new Date(Date.now() - 30 * 3600 * 1000).toISOString()
-  }
-];
+// Writes that have not reached Supabase yet (kept + retried so nothing is lost).
+const unsyncedBookings = new Map();
+const unsyncedUsers = new Map();
+
+const userKey = (u) => u.phone || u.email;
 
 // --- USERS OPERATIONS ---
-export const getUsers = () => {
-  try {
-    const raw = (localStorage.getItem(USERS_STORAGE_KEY) || localStorage.getItem('kaamwala_db_users'));
-    if (!raw) {
-      localStorage.setItem(USERS_STORAGE_KEY, JSON.stringify(INITIAL_USERS));
-      return INITIAL_USERS;
-    }
-    return JSON.parse(raw);
-  } catch (e) {
-    return INITIAL_USERS;
-  }
-};
+export const getUsers = () => users;
 
 export const saveUser = (user) => {
-  try {
-    const users = getUsers();
-    const existingIndex = users.findIndex(u =>
-      (user.authUserId && u.authUserId === user.authUserId) ||
-      (user.phone && u.phone === user.phone) ||
-      (user.email && u.email === user.email));
-    
-    const userToSave = {
-      ...user,
-      id: user.id || `user_${Date.now()}`,
-      isVerified: true,
-      createdAt: user.createdAt || new Date().toISOString()
-    };
+  const existingIndex = users.findIndex(u =>
+    (user.authUserId && u.authUserId === user.authUserId) ||
+    (user.phone && u.phone === user.phone) ||
+    (user.email && u.email === user.email));
 
-    if (existingIndex >= 0) {
-      users[existingIndex] = { ...users[existingIndex], ...userToSave };
-    } else {
-      users.push(userToSave);
-    }
+  const userToSave = {
+    ...user,
+    id: user.id || `user_${Date.now()}`,
+    isVerified: true,
+    createdAt: user.createdAt || new Date().toISOString()
+  };
 
-    localStorage.setItem(USERS_STORAGE_KEY, JSON.stringify(users));
-    pushUser(existingIndex >= 0 ? users[existingIndex] : userToSave);
-    return userToSave;
-  } catch (e) {
-    console.error('Error saving user to DB:', e);
-    return user;
+  let saved;
+  if (existingIndex >= 0) {
+    saved = { ...users[existingIndex], ...userToSave };
+    users = users.map((u, i) => (i === existingIndex ? saved : u));
+  } else {
+    saved = userToSave;
+    users = [...users, saved];
   }
+  pushUser(saved);
+  return saved;
 };
 
 export const authenticateUser = (phoneOrEmail, password, role) => {
-  const users = getUsers();
-  const found = users.find(u => 
-    (u.phone === phoneOrEmail || u.email === phoneOrEmail || phoneOrEmail.includes(u.phone)) &&
+  const found = users.find(u =>
+    (u.phone === phoneOrEmail || u.email === phoneOrEmail || (u.phone && phoneOrEmail.includes(u.phone))) &&
     (!role || u.role === role)
   );
   return found || null;
 };
 
-// --- BOOKINGS OPERATIONS (MULTIPLE BOOKINGS TRACKER) ---
-export const getBookings = () => {
-  try {
-    const raw = (localStorage.getItem(BOOKINGS_STORAGE_KEY) || localStorage.getItem('kaamwala_db_bookings'));
-    if (!raw) {
-      localStorage.setItem(BOOKINGS_STORAGE_KEY, JSON.stringify(INITIAL_BOOKINGS));
-      return INITIAL_BOOKINGS;
-    }
-    return JSON.parse(raw);
-  } catch (e) {
-    return INITIAL_BOOKINGS;
-  }
+// --- BOOKINGS OPERATIONS ---
+export const getBookings = () => bookings;
+
+const replaceBooking = (updated) => {
+  bookings = bookings.map(b => (b.id === updated.id ? updated : b));
+  pushBooking(updated);
+  return updated;
 };
 
 export const addBooking = (booking) => {
-  try {
-    const bookings = getBookings();
-    const newBooking = {
-      ...booking,
-      id: booking.id || `bk_${Date.now()}`,
-      startOtp: booking.startOtp || Math.floor(1000 + Math.random() * 9000).toString(),
-      status: booking.status || 'en_route',
-      createdAt: new Date().toISOString()
-    };
-
-    if (sessionUser && !newBooking.customerPhone) {
-      newBooking.customerPhone = sessionUser.phone;
-      newBooking.customerName = sessionUser.name;
-    }
-    bookings.unshift(newBooking);
-    localStorage.setItem(BOOKINGS_STORAGE_KEY, JSON.stringify(bookings));
-    pushBooking(newBooking);
-    return newBooking;
-  } catch (e) {
-    console.error('Error adding booking to DB:', e);
-    return booking;
+  const newBooking = {
+    ...booking,
+    id: booking.id || `bk_${Date.now()}`,
+    startOtp: booking.startOtp || Math.floor(1000 + Math.random() * 9000).toString(),
+    status: booking.status || 'en_route',
+    createdAt: new Date().toISOString()
+  };
+  if (sessionUser && !newBooking.customerPhone) {
+    newBooking.customerPhone = sessionUser.phone;
+    newBooking.customerName = sessionUser.name;
   }
+  bookings = [newBooking, ...bookings];
+  pushBooking(newBooking);
+  return newBooking;
 };
 
 export const updateBookingStatus = (bookingId, status) => {
-  try {
-    const bookings = getBookings();
-    const index = bookings.findIndex(b => b.id === bookingId);
-    if (index >= 0) {
-      bookings[index].status = status;
-      if (status === 'completed') {
-        bookings[index].completedAt = new Date().toISOString();
-        bookings[index].escrowLocked = false;
-      }
-      localStorage.setItem(BOOKINGS_STORAGE_KEY, JSON.stringify(bookings));
-      pushBooking(bookings[index]);
-      return bookings[index];
-    }
-    return null;
-  } catch (e) {
-    console.error('Error updating booking status:', e);
-    return null;
+  const b = bookings.find(x => x.id === bookingId);
+  if (!b) return null;
+  const updated = { ...b, status };
+  if (status === 'completed') {
+    updated.completedAt = new Date().toISOString();
+    updated.escrowLocked = false;
   }
+  return replaceBooking(updated);
 };
 
 export const cancelBooking = (bookingId, reason = 'Customer requested cancellation', fee = 50) => {
-  try {
-    const bookings = getBookings();
-    const index = bookings.findIndex(b => b.id === bookingId);
-    if (index >= 0) {
-      const b = bookings[index];
-      b.status = 'cancelled';
-      b.cancelledAt = new Date().toISOString();
-      b.cancellationReason = reason;
-      b.cancellationFee = fee;
-      b.refundAmount = Math.max(0, (b.quoteAmount || 0) - fee);
-      b.workerCompensated = true;
-      b.workerCompensationAmount = fee;
-      b.escrowLocked = false;
-      localStorage.setItem(BOOKINGS_STORAGE_KEY, JSON.stringify(bookings));
-      pushBooking(b);
-      return b;
-    }
-    return null;
-  } catch (e) {
-    console.error('Error cancelling booking:', e);
-    return null;
-  }
+  const b = bookings.find(x => x.id === bookingId);
+  if (!b) return null;
+  return replaceBooking({
+    ...b,
+    status: 'cancelled',
+    cancelledAt: new Date().toISOString(),
+    cancellationReason: reason,
+    cancellationFee: fee,
+    refundAmount: Math.max(0, (b.quoteAmount || 0) - fee),
+    workerCompensated: true,
+    workerCompensationAmount: fee,
+    escrowLocked: false
+  });
 };
 
 export const verifyBookingOtp = (bookingId, otpEntered) => {
-  try {
-    const bookings = getBookings();
-    const index = bookings.findIndex(b => b.id === bookingId);
-    if (index >= 0) {
-      const b = bookings[index];
-      if (b.startOtp === otpEntered.trim()) {
-        b.status = 'in_progress';
-        b.otpVerified = true;
-        b.otpVerifiedAt = new Date().toISOString();
-        localStorage.setItem(BOOKINGS_STORAGE_KEY, JSON.stringify(bookings));
-        pushBooking(b);
-        return { success: true, booking: b };
-      } else {
-        return { 
-          success: false, 
-          error: `Incorrect OTP. Please ask the customer to check the 4-digit code on their KaamSetu screen (hint: ${b.startOtp}).` 
-        };
-      }
-    }
-    return { success: false, error: 'Order not found in database.' };
-  } catch (e) {
-    console.error('Error verifying OTP:', e);
-    return { success: false, error: e.message };
+  const b = bookings.find(x => x.id === bookingId);
+  if (!b) return { success: false, error: 'Order not found in database.' };
+  if (b.startOtp === otpEntered.trim()) {
+    const updated = replaceBooking({
+      ...b,
+      status: 'in_progress',
+      otpVerified: true,
+      otpVerifiedAt: new Date().toISOString()
+    });
+    return { success: true, booking: updated };
   }
+  return {
+    success: false,
+    error: `Incorrect OTP. Please ask the customer to check the 4-digit code on their KaamSetu screen (hint: ${b.startOtp}).`
+  };
 };
-
-// --- SUPABASE CLOUD SYNC ---
-// localStorage stays the fast synchronous cache the UI reads from; every write is
-// mirrored to Supabase, and syncFromCloud() pulls the shared data back down so
-// bookings made on one device show up on others (e.g. customer -> worker portal).
-
-export const DB_SYNC_EVENT = 'kaamsetu-db-sync';
-let sessionUser = null;
 
 // Remember who is logged in so new bookings are tagged with the customer.
 export const setSessionUser = (user) => {
@@ -297,6 +132,26 @@ export const setSessionUser = (user) => {
   if (user) pushUser(user);
 };
 
+// --- CHAT ---
+export const logChatMessage = (bookingId, sender, text) => {
+  if (!bookingId || !text) return;
+  insert('chat_messages', { booking_id: bookingId, sender, text }).catch(warn('chat save'));
+};
+
+export const getChatMessages = async (bookingId) => {
+  if (!bookingId) return [];
+  try {
+    return await select(
+      'chat_messages',
+      `select=id,sender,text,created_at&booking_id=eq.${encodeURIComponent(bookingId)}&order=created_at.asc&limit=200`
+    );
+  } catch (e) {
+    warn('chat load')(e);
+    return [];
+  }
+};
+
+// --- SUPABASE ROW MAPPING ---
 const iso = (v) => (v ? new Date(v).toISOString() : null);
 
 const userToRow = (u) => {
@@ -357,84 +212,97 @@ const bookingToRow = (b) => ({
   data: b
 });
 
-const warn = (what) => (e) => console.warn(`[KaamSetu] Supabase ${what} failed (kept locally):`, e.message);
+const warn = (what) => (e) => console.warn(`[KaamSetu] Supabase ${what} failed:`, e.message);
 
 function pushUser(u) {
-  if (!u || (!u.phone && !u.email)) return;
-  const row = userToRow(u);
-  upsert('app_users', row).catch((e) => {
-    // Database not updated yet (auth_user_id column missing): save the profile without the link.
-    if (/auth_user_id/.test(e.message)) {
-      console.warn('[KaamSetu] Run the latest supabase/migration.sql to link profiles to accounts.');
-      const { auth_user_id, ...rest } = row;
-      return upsert('app_users', rest).catch(warn('user save'));
-    }
-    warn('user save')(e);
-  });
+  if (!u || !userKey(u)) return;
+  unsyncedUsers.set(userKey(u), u);
+  upsert('app_users', userToRow(u))
+    .then(() => { if (unsyncedUsers.get(userKey(u)) === u) unsyncedUsers.delete(userKey(u)); })
+    .catch(warn('user save (will retry)'));
 }
 
 function pushBooking(b) {
   if (!b || !b.id) return;
-  upsert('bookings', bookingToRow(b)).catch(warn('booking save'));
+  unsyncedBookings.set(b.id, b);
+  upsert('bookings', bookingToRow(b))
+    .then(() => { if (unsyncedBookings.get(b.id) === b) unsyncedBookings.delete(b.id); })
+    .catch(warn('booking save (will retry)'));
 }
 
-export const logChatMessage = (bookingId, sender, text) => {
-  if (!bookingId || !text) return;
-  insert('chat_messages', { booking_id: bookingId, sender, text }).catch(warn('chat log'));
+// --- LOADING FROM SUPABASE ---
+const notify = () => {
+  if (typeof window !== 'undefined') window.dispatchEvent(new CustomEvent(DB_SYNC_EVENT));
 };
 
-// Merge cloud rows into the local cache. Cloud wins for shared ids; local-only
-// rows (e.g. demo seeds on first run) are pushed up.
-export const syncFromCloud = async () => {
-  if (hasPendingWrites()) return false; // don't overwrite a write still in flight
+// Pull users + bookings. Supabase wins, except for local writes that haven't landed yet.
+const pullCore = async () => {
+  const [remoteBookings, remoteUsers] = await Promise.all([
+    select('bookings', 'select=data&order=created_at.desc&limit=500'),
+    select('app_users', 'select=data&limit=1000')
+  ]);
+  if (hasPendingWrites()) return false;
+
+  // retry anything that failed to save earlier
+  unsyncedBookings.forEach(pushBooking);
+  unsyncedUsers.forEach(pushUser);
+
+  const cloudB = remoteBookings.map(r => r.data).filter(Boolean);
+  const pendingB = [...unsyncedBookings.values()];
+  const pendingIds = new Set(pendingB.map(b => b.id));
+  const nextB = [...pendingB, ...cloudB.filter(b => !pendingIds.has(b.id))].sort(
+    (a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0)
+  );
+
+  const cloudU = remoteUsers.map(r => r.data).filter(Boolean);
+  const pendingU = [...unsyncedUsers.values()];
+  const pendingKeys = new Set(pendingU.map(userKey));
+  const nextU = [...cloudU.filter(u => !pendingKeys.has(userKey(u))), ...pendingU];
+
+  const changed = JSON.stringify(nextB) !== JSON.stringify(bookings);
+  bookings = nextB;
+  users = nextU;
+  if (changed) notify();
+  return true;
+};
+
+// Workers and service categories: read from Supabase. If a table is still empty,
+// it is filled once from the starter list so the site has something to show.
+const loadCatalog = async (table, target) => {
+  let rows;
   try {
-    const [remoteBookings, remoteUsers] = await Promise.all([
-      select('bookings', 'select=data&order=created_at.desc&limit=500'),
-      select('app_users', 'select=data&limit=1000')
-    ]);
-    if (hasPendingWrites()) return false;
-
-    const localBookings = getBookings();
-    const cloudB = remoteBookings.map(r => r.data).filter(Boolean);
-    const cloudIds = new Set(cloudB.map(b => b.id));
-    const localOnly = localBookings.filter(b => !cloudIds.has(b.id));
-    localOnly.forEach(pushBooking);
-    const mergedB = [...cloudB, ...localOnly].sort(
-      (a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0)
-    );
-
-    const localUsers = getUsers();
-    const cloudU = remoteUsers.map(r => r.data).filter(Boolean);
-    const key = (u) => u.phone || u.email;
-    const cloudKeys = new Set(cloudU.map(key));
-    const localUOnly = localUsers.filter(u => !cloudKeys.has(key(u)));
-    localUOnly.forEach(pushUser);
-    // keep local-only fields such as demo passwords
-    const mergedU = [
-      ...cloudU.map(cu => ({ ...(localUsers.find(lu => key(lu) === key(cu)) || {}), ...cu })),
-      ...localUOnly
-    ];
-
-    const changed = JSON.stringify(mergedB) !== JSON.stringify(localBookings);
-    localStorage.setItem(BOOKINGS_STORAGE_KEY, JSON.stringify(mergedB));
-    localStorage.setItem(USERS_STORAGE_KEY, JSON.stringify(mergedU));
-    if (changed && typeof window !== 'undefined') {
-      window.dispatchEvent(new CustomEvent(DB_SYNC_EVENT));
-    }
-    return true;
+    rows = await select(table, 'select=data&order=sort_order.asc');
   } catch (e) {
-    warn('sync')(e);
-    return false;
+    // Table not created yet: keep the starter list until supabase/migration_v2.sql is run.
+    if (/PGRST205|404|does not exist|Could not find/i.test(e.message)) {
+      console.warn(`[KaamSetu] Supabase table "${table}" missing. Run supabase/migration_v2.sql.`);
+      return;
+    }
+    throw e;
+  }
+  if (!rows.length && target.length) {
+    await upsert(table, target.map((d, i) => ({ id: String(d.id), sort_order: i, data: d })));
+    rows = await select(table, 'select=data&order=sort_order.asc');
+  }
+  // mutate in place: components import these arrays directly
+  target.splice(0, target.length, ...rows.map(r => r.data).filter(Boolean));
+};
+
+let pollTimer = null;
+
+// Called once before the app renders. Throws if Supabase can't be reached.
+export const loadDatabase = async () => {
+  await Promise.all([
+    pullCore(),
+    loadCatalog('workers', WORKERS_DATABASE),
+    loadCatalog('service_categories', SERVICE_CATEGORIES)
+  ]);
+  if (!pollTimer && typeof window !== 'undefined') {
+    pollTimer = setInterval(() => pullCore().catch(warn('sync')), 5000);
   }
 };
 
-// Pull on load and every few seconds so other devices' changes appear.
-if (typeof window !== 'undefined') {
-  syncFromCloud();
-  setInterval(syncFromCloud, 5000);
-}
-
-// Load the profile that belongs to a Supabase Auth account (cloud first, then local cache).
+// Load the profile that belongs to a Supabase Auth account.
 export const findUserByAuthId = async (authUserId) => {
   if (!authUserId) return null;
   try {
@@ -443,5 +311,5 @@ export const findUserByAuthId = async (authUserId) => {
   } catch (e) {
     warn('profile load')(e);
   }
-  return getUsers().find(u => u.authUserId === authUserId) || null;
+  return users.find(u => u.authUserId === authUserId) || null;
 };

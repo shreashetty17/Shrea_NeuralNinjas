@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { logChatMessage } from '../services/db';
+import { logChatMessage, getChatMessages } from '../services/db';
 import { 
   Send, 
   Phone, 
@@ -134,6 +134,23 @@ export const CustomerWorkerChatPopup = ({
       ]);
     }
   }, [booking?.id, worker?.id, lang]);
+
+  // Load this booking's saved chat history from Supabase
+  useEffect(() => {
+    if (!booking?.id) return;
+    let cancelled = false;
+    getChatMessages(booking.id).then((rows) => {
+      if (cancelled || !rows.length) return;
+      const history = rows.map((r) => ({
+        id: `db_${r.id}`,
+        sender: r.sender,
+        text: r.text,
+        time: new Date(r.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+      }));
+      setMessages((prev) => [...prev.filter((m) => !String(m.id).startsWith('db_')), ...history]);
+    });
+    return () => { cancelled = true; };
+  }, [booking?.id, lang]);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
