@@ -1,5 +1,6 @@
-import React, { useMemo } from 'react';
-import { ArrowLeft, PhoneCall, Clock, MapPin, IndianRupee, Navigation, Hash, CheckCircle2, User } from 'lucide-react';
+import React, { useMemo, useState } from "react";
+import { ArrowLeft, PhoneCall, Clock, MapPin, IndianRupee, Navigation, Hash, CheckCircle2, User, KeyRound, X, AlertTriangle } from "lucide-react";
+import { verifyBookingOtp, updateBookingStatus, workerCancelBooking } from "../services/db";
 import { NearbyWorkersMap, CUSTOMER_LOCATION, distanceKm } from './NearbyWorkersMap';
 import { BookingChat } from '../pages/BookingDetailPage';
 import { WORKERS_DATABASE } from '../data/mockData';
@@ -25,7 +26,18 @@ const Detail = ({ icon: Icon, label, value }) => (
 );
 
 // Worker's view of one accepted order: live map to the customer, details and chat.
-export const WorkerOrderDetail = ({ order, onBack }) => {
+export const WorkerOrderDetail = ({ order, onBack, onUpdated }) => {
+  const [otp, setOtp] = useState("");
+  const [otpMsg, setOtpMsg] = useState(null);
+  const [confirmCancel, setConfirmCancel] = useState(false);
+  const done = () => { if (onUpdated) onUpdated(); };
+  const handleVerify = (e) => {
+    e.preventDefault();
+    if (otp.length !== 4) { setOtpMsg({ ok: false, text: "Enter the 4-digit OTP from the customer." }); return; }
+    const res = verifyBookingOtp(order.id, otp);
+    setOtpMsg(res.success ? { ok: true, text: "OTP verified. You can start the work." } : { ok: false, text: res.error });
+    if (res.success) { setOtp(""); done(); }
+  };
   const worker = useMemo(() => {
     const w = order?.worker || {};
     const fromDb = WORKERS_DATABASE.find((x) => String(x.id) === String(w.id)) || {};
@@ -97,9 +109,80 @@ export const WorkerOrderDetail = ({ order, onBack }) => {
               </div>
             )}
           </div>
-          <p className="text-xs text-slate-500">
-            Ask {customerFirst} for the 4-digit Start OTP when you arrive, and enter it on the order card in Active Orders.
-          </p>
+          {/* Start OTP: entered at the customer's door */}
+          {(order.status === 'en_route' || order.status === 'scheduled') && (
+            <form onSubmit={handleVerify} className="bg-amber-50/80 rounded-3xl border-2 border-amber-300 p-6 space-y-3">
+              <div className="flex items-center gap-2">
+                <KeyRound className="w-5 h-5 text-amber-700" />
+                <h3 className="font-display font-bold text-slate-900">Enter the customer's Start OTP</h3>
+              </div>
+              <p className="text-xs text-slate-600">Ask {customerFirst} for the 4-digit OTP shown on their booking page when you arrive.</p>
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  maxLength={4}
+                  placeholder="----"
+                  value={otp}
+                  onChange={(e) => { setOtp(e.target.value.replace(/\D/g, '').slice(0, 4)); setOtpMsg(null); }}
+                  className="w-full sm:w-40 text-center tracking-widest text-2xl font-mono font-black py-2.5 rounded-xl bg-white border-2 border-amber-400 focus:ring-2 focus:ring-[#149B8B]"
+                />
+                <button type="submit" className="btn-primary text-sm px-6 py-3 shadow-md">Verify OTP & start work</button>
+              </div>
+              {otpMsg && (
+                <p className={`text-xs font-bold ${otpMsg.ok ? 'text-emerald-700' : 'text-rose-600'}`}>{otpMsg.text}</p>
+              )}
+            </form>
+          )}
+
+          {order.status === 'in_progress' && (
+            <div className="bg-emerald-50 rounded-3xl border-2 border-emerald-300 p-6 space-y-3">
+              <p className="text-sm font-bold text-emerald-800 flex items-center gap-2">
+                <CheckCircle2 className="w-5 h-5" /> OTP verified. Work in progress.
+              </p>
+              <button
+                onClick={() => { updateBookingStatus(order.id, 'completed'); done(); }}
+                className="px-6 py-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm"
+              >
+                Mark job completed
+              </button>
+            </div>
+          )}
+
+          {/* Cancellation */}
+          {!isClosed && (
+            confirmCancel ? (
+              <div className="p-5 rounded-3xl border-2 border-rose-200 bg-rose-50 space-y-3">
+                <p className="text-sm font-bold text-rose-800 flex items-center gap-2">
+                  <AlertTriangle className="w-4 h-4" /> Cancel this order? {customerFirst} will be notified.
+                </p>
+                <div className="flex gap-3">
+                  <button
+                    onClick={() => { workerCancelBooking(order.id); setConfirmCancel(false); done(); }}
+                    className="px-5 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs"
+                  >
+                    Yes, cancel order
+                  </button>
+                  <button onClick={() => setConfirmCancel(false)} className="px-5 py-2.5 rounded-xl border border-slate-300 bg-white text-slate-700 font-bold text-xs">
+                    Keep order
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <button
+                onClick={() => setConfirmCancel(true)}
+                className="w-full py-3.5 rounded-2xl border border-rose-200 bg-white text-rose-600 hover:bg-rose-50 font-bold text-sm flex items-center justify-center gap-2"
+              >
+                <X className="w-4 h-4" /> Cancel order
+              </button>
+            )
+          )}
+          {order.status === 'cancelled' && (
+            <div className="p-4 rounded-2xl bg-rose-50 border border-rose-200 text-rose-700 text-sm font-semibold">This order was cancelled.</div>
+          )}
+          {order.status === 'completed' && (
+            <div className="p-4 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-700 text-sm font-semibold">Job completed.</div>
+          )}
         </div>
 
         {/* Chat with the customer */}

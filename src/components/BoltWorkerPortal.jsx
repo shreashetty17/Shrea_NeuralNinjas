@@ -260,17 +260,20 @@ export const BoltWorkerPortal = ({ onSwitchUser, lang = 'en', currentUser = null
   // Bell: notifications for the worker (new bookings, price changes, cancellations)
   const workerNotifications = getNotifications('worker');
   // Booking request opened from a notification, and the order opened for map + chat
-  const [negotiatingId, setNegotiatingId] = useState(null);
   const [selectedOrderId, setSelectedOrderId] = useState(null);
-  const negotiatingOrder = negotiatingOrders.find((b) => b.id === negotiatingId) || null;
   const selectedOrder = orders.find((b) => b.id === selectedOrderId) || null;
   const openWorkerNotification = (n) => {
     const bk = allBookings.find((b) => b.id === n.bookingId);
     if (!bk) return;
-    if (bk.status === 'negotiating') {
-      setNegotiatingId(bk.id);
+    if (bk.status === "negotiating") {
+      setWorkerTab("orders");
+      setSelectedOrderId(null);
+      setTimeout(() => {
+        const el = document.getElementById(`req-${bk.id}`);
+        if (el) el.scrollIntoView({ behavior: "smooth", block: "center" });
+      }, 150);
     } else {
-      setWorkerTab('orders');
+      setWorkerTab("active_job");
       setSelectedOrderId(bk.id);
       window.scrollTo({ top: 0, behavior: 'smooth' });
     }
@@ -357,19 +360,15 @@ export const BoltWorkerPortal = ({ onSwitchUser, lang = 'en', currentUser = null
               >
                 <Package className="w-3.5 h-3.5 text-secondary-600" />
                 <span>{t.workerTabOrders || 'Active Orders'}</span>
-                {pendingOtpOrders.length > 0 ? (
+                {negotiatingOrders.length > 0 && (
                   <span className="px-1.5 py-0.2 bg-rose-600 text-white rounded-full text-[9px] font-bold animate-pulse">
-                    {pendingOtpOrders.length}
-                  </span>
-                ) : (
-                  <span className="w-4 h-4 bg-slate-200 text-slate-700 rounded-full text-[9px] flex items-center justify-center font-bold">
-                    {orders.length}
+                    {negotiatingOrders.length}
                   </span>
                 )}
               </button>
 
               <button
-                onClick={() => setWorkerTab('active_job')}
+                onClick={() => { setWorkerTab("active_job"); setSelectedOrderId(null); }}
                 className={`px-3.5 py-2 rounded-xl flex items-center gap-1.5 transition-all ${
                   workerTab === 'active_job'
                     ? 'bg-white text-slate-900 shadow-xs font-extrabold'
@@ -378,6 +377,9 @@ export const BoltWorkerPortal = ({ onSwitchUser, lang = 'en', currentUser = null
               >
                 <Navigation className="w-3.5 h-3.5 text-primary-600" />
                 <span>{t.workerTabActiveJob || 'My Orders'}</span>
+                {filteredOrders.length > 0 && (
+                  <span className="w-4 h-4 bg-slate-200 text-slate-700 rounded-full text-[9px] flex items-center justify-center font-bold">{filteredOrders.length}</span>
+                )}
               </button>
 
               <button
@@ -461,8 +463,8 @@ export const BoltWorkerPortal = ({ onSwitchUser, lang = 'en', currentUser = null
           {/* Mobile Tab Strip */}
           <div className="lg:hidden flex items-center gap-1 overflow-x-auto py-2 border-t border-slate-100 no-scrollbar text-xs font-bold text-slate-600">
             {[
-              { id: 'orders', label: `${t.workerTabOrders || 'Active Orders'} (${pendingOtpOrders.length > 0 ? `${pendingOtpOrders.length} OTP` : orders.length})` },
-              { id: 'active_job', label: t.workerTabActiveJob || 'My Orders' },
+              { id: 'orders', label: `${t.workerTabOrders || "Active Orders"} (${negotiatingOrders.length})` },
+              { id: "active_job", label: `${t.workerTabActiveJob || "My Orders"} (${filteredOrders.length})` },
               { id: 'earnings', label: `${t.workerTabEarnings || 'Earnings'} (${isBalanceRevealed ? `₹${currentWalletBalance.toLocaleString()}` : '₹*****'})` }
             ].map((tab) => (
               <button
@@ -488,11 +490,133 @@ export const BoltWorkerPortal = ({ onSwitchUser, lang = 'en', currentUser = null
         {/* ======================================================== */}
         {/* TAB 1: MY ORDERS & DOORSTEP OTP VERIFICATION (CORE FEATURE) */}
         {/* ======================================================== */}
-        {workerTab === "orders" && selectedOrder && (
-          <WorkerOrderDetail order={selectedOrder} onBack={() => setSelectedOrderId(null)} />
+        {/* ======================================================== */}
+        {/* ACTIVE ORDERS: bidding on booking requests only */}
+        {/* ======================================================== */}
+        {workerTab === 'orders' && (
+          <div className="space-y-6 animate-in fade-in">
+            {/* Booking requests from customers: accept or send your own price */}
+            <div className="bg-white border border-slate-200/90 rounded-3xl p-6 sm:p-8 shadow-bolt-sm space-y-5">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div>
+                  <h2 className="text-xl font-display font-bold text-slate-900">New booking requests</h2>
+                  <p className="text-xs text-slate-500 mt-0.5">Customers who booked you. Accept their price or send your own. The order is confirmed when you accept.</p>
+                </div>
+                <span className="self-start sm:self-center flex items-center gap-1.5 text-xs text-emerald-800 font-bold bg-emerald-100 px-3 py-1.5 rounded-xl border border-emerald-200">
+                  <Radio className="w-3.5 h-3.5 animate-pulse text-emerald-600" />
+                  {negotiatingOrders.length} waiting
+                </span>
+              </div>
+
+              {negotiatingOrders.length === 0 ? (
+                <p className="text-center text-xs text-slate-400 py-8">No new requests right now. You'll get a notification when a customer books you.</p>
+              ) : (
+                <div className="grid grid-cols-1 gap-4">
+                  {negotiatingOrders.map((req) => {
+                    const myTurn = req.lastOfferBy === 'customer' || req.customerAgreed;
+                    const custFirst = (req.customerName || 'Customer').split(' ')[0];
+                    return (
+                      <div key={req.id} id={`req-${req.id}`} className={`p-5 rounded-2xl border space-y-4 ${myTurn ? 'bg-amber-50/50 border-amber-300' : 'bg-slate-50/70 border-slate-200'}`}>
+                        <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
+                          <div className="space-y-1">
+                            <div className="flex flex-wrap items-center gap-2">
+                              <span className="text-[11px] font-bold uppercase text-primary-800 bg-primary-100 px-2 py-0.5 rounded border border-primary-200">
+                                {req.categoryName || 'Home Service'}
+                              </span>
+                              <span className="text-xs text-slate-400">• {req.urgency || 'Today'}</span>
+                            </div>
+                            <h3 className="text-base font-display font-bold text-slate-900">{req.title}</h3>
+                            <p className="text-xs text-slate-600">{req.description}</p>
+                            <p className="text-[11px] text-slate-500 flex items-center gap-1">
+                              <MapPin className="w-3.5 h-3.5 text-slate-400" /> {req.customerName || 'Customer'} • {req.address}
+                            </p>
+                          </div>
+                          <div className="sm:text-right shrink-0">
+                            <span className="text-[11px] text-slate-400 block">Current price</span>
+                            <span className="text-2xl font-display font-black text-slate-900">₹{req.quoteAmount}</span>
+                            {req.budgetRange && (
+                              <span className="text-[11px] text-slate-500 block">Budget ₹{req.budgetRange.min}–₹{req.budgetRange.max}</span>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Offer history */}
+                        {(req.offers || []).length > 0 && (
+                          <div className="flex flex-wrap gap-2">
+                            {req.offers.map((o, i) => (
+                              <span key={i} className={`px-2.5 py-1 rounded-full text-[11px] font-bold border ${o.by === 'worker' ? 'bg-[#149B8B]/10 text-[#0f7a6e] border-[#149B8B]/30' : 'bg-white text-slate-700 border-slate-200'}`}>
+                                {o.by === 'worker' ? 'You' : custFirst}: ₹{o.amount}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+
+                        <p className={`text-xs font-bold ${myTurn ? 'text-amber-800' : 'text-slate-500'}`}>
+                          {req.customerAgreed
+                            ? `${custFirst} agreed to ₹${req.quoteAmount}. Accept to confirm the order.`
+                            : myTurn
+                            ? `${custFirst} offered ₹${req.quoteAmount}. Accept or send your price.`
+                            : `You offered ₹${req.quoteAmount}. Waiting for ${custFirst} to reply.`}
+                        </p>
+
+                        <div className="pt-3 border-t border-slate-200 flex flex-col sm:flex-row items-stretch sm:items-end gap-3">
+                          {myTurn && (
+                            <button
+                              onClick={() => { workerAcceptBooking(req.id); playAudioCue('match_success'); refreshOrders(); }}
+                              className="px-5 py-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs flex items-center justify-center gap-1.5 shadow-sm"
+                            >
+                              <CheckCircle2 className="w-4 h-4" /> Accept order at ₹{req.quoteAmount}
+                            </button>
+                          )}
+                          <form
+                            onSubmit={(e) => { e.preventDefault(); handlePlaceBid(req.id); }}
+                            className="flex flex-1 flex-col sm:flex-row items-stretch sm:items-end gap-3"
+                          >
+                            <label className="block">
+                              <span className="text-[11px] font-bold text-slate-600 block mb-1">{myTurn ? 'Or send your price (₹)' : 'Change your price (₹)'}</span>
+                              <div className="relative">
+                                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-sm">₹</span>
+                                <input
+                                  type="number"
+                                  min="1"
+                                  inputMode="numeric"
+                                  placeholder={`e.g. ${(req.quoteAmount || 300) + 50}`}
+                                  value={bidPrices[req.id] || ''}
+                                  onChange={(e) => {
+                                    setBidPrices((p) => ({ ...p, [req.id]: e.target.value }));
+                                    setBidErrors((p) => ({ ...p, [req.id]: '' }));
+                                  }}
+                                  className="w-full sm:w-36 pl-7 pr-3 py-2.5 rounded-xl bg-white border border-slate-300 focus:ring-2 focus:ring-[#149B8B] text-sm font-bold text-slate-900"
+                                />
+                              </div>
+                            </label>
+                            <button type="submit" className="btn-primary text-xs px-5 py-3 shadow-sm flex items-center justify-center gap-1.5">
+                              <ArrowRight className="w-3.5 h-3.5" />
+                              <span>Send price</span>
+                            </button>
+                            {bidErrors[req.id] && (
+                              <span className="text-[11px] font-bold text-rose-600 self-center">{bidErrors[req.id]}</span>
+                            )}
+                          </form>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
+          </div>
         )}
 
-        {workerTab === "orders" && !selectedOrder && (
+        {/* ======================================================== */}
+        {/* MY ORDERS: accepted orders (OTP, live map, address, chat, cancel) */}
+        {/* ======================================================== */}
+        {workerTab === "active_job" && selectedOrder && (
+          <WorkerOrderDetail order={selectedOrder} onBack={() => setSelectedOrderId(null)} onUpdated={refreshOrders} />
+        )}
+
+        {workerTab === "active_job" && !selectedOrder && (
           <div className="space-y-6 animate-in fade-in">
             
             {/* Orders Feed List */}
@@ -502,10 +626,10 @@ export const BoltWorkerPortal = ({ onSwitchUser, lang = 'en', currentUser = null
                   <Package className="w-8 h-8" />
                 </div>
                 <h3 className="text-lg font-display font-bold text-slate-900">
-                  No active orders yet
+                  No accepted orders yet
                 </h3>
                 <p className="text-xs text-slate-500 max-w-sm mx-auto">
-                  Orders you accept will appear here. New booking requests arrive in the notification bell.
+                  When you accept a booking in Active Orders, it appears here with the OTP, live map, address and chat.
                 </p>
               </div>
             ) : (
@@ -797,91 +921,6 @@ export const BoltWorkerPortal = ({ onSwitchUser, lang = 'en', currentUser = null
               </div>
             )}
 
-          </div>
-        )}
-
-        {/* ======================================================== */}
-        {/* TAB 3: ACTIVE JOB & MAP */}
-        {/* ======================================================== */}
-        {workerTab === 'active_job' && (
-          <div className="space-y-6 animate-in fade-in">
-            {activeOrder?.status === 'cancelled' ? (
-              <div className="bg-white p-8 rounded-3xl border-2 border-rose-200 shadow-bolt-sm text-center space-y-4">
-                <div className="w-16 h-16 rounded-2xl bg-rose-100 text-rose-600 mx-auto flex items-center justify-center">
-                  <AlertTriangle className="w-8 h-8" />
-                </div>
-                <div className="space-y-1">
-                  <h3 className="text-2xl font-display font-bold text-slate-900">
-                    {t.workerActiveOrderCancelledTitle || 'Active Order Cancelled by Customer'}
-                  </h3>
-                  <p className="text-xs sm:text-sm text-slate-500 max-w-md mx-auto">
-                    {t.workerActiveOrderCancelledSub || 'The customer cancelled this booking. Under KaamSetu Fair Worker Protection, a ₹50 cancellation compensation fee has been credited to your wallet balance.'}
-                  </p>
-                </div>
-                <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-emerald-100 text-emerald-800 text-xs font-bold border border-emerald-200">
-                  <Coins className="w-4 h-4 text-emerald-600" />
-                  <span>+₹50 {t.workerCancellationFeeRecv || 'Travel & Fuel Compensation Deposited'}</span>
-                </div>
-                <div className="pt-2 flex justify-center gap-3">
-                  <button
-                    onClick={() => setWorkerTab('orders')}
-                    className="btn-primary text-xs px-5 py-2.5 shadow-sm"
-                  >
-                    {t.workerFilterAll || 'View All Orders'}
-                  </button>
-                </div>
-              </div>
-            ) : (
-              <>
-                <div className="bg-white p-6 rounded-3xl border border-slate-200/90 shadow-bolt-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                  <div>
-                    <span className="text-xs font-bold uppercase text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded">
-                      {activeOrder?.status === 'in_progress' ? (t.workerOtpVerifiedBadge || 'Work in Progress (OTP Verified)') : 'Accepted Job En Route'}
-                    </span>
-                    <h3 className="text-xl font-display font-bold text-slate-900 mt-1">
-                      {activeOrder?.title || 'Kitchen Faucet Cartridge Leakage'}
-                    </h3>
-                    <p className="text-xs text-slate-500">
-                      {t.workerCustomerLabel || 'Customer'}: <strong>{activeOrder?.customerName || 'Customer'}</strong> • {activeOrder?.address || 'Flat 402, Sea Green Apts, Pali Hill, Bandra West'}
-                    </p>
-                  </div>
-
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={() => setWorkerTab('orders')}
-                      className="px-4 py-2 rounded-xl bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200 font-bold text-xs flex items-center gap-1.5"
-                    >
-                      <KeyRound className="w-3.5 h-3.5 text-amber-600" />
-                      <span>{t.workerFilterOtp || 'Verify Customer OTP'}</span>
-                    </button>
-
-                    <button
-                      onClick={() => setWorkerTab('chat')}
-                      className="btn-primary text-xs px-4 py-2 flex items-center gap-1.5"
-                    >
-                      <MessageSquare className="w-3.5 h-3.5" />
-                      <span>{t.workerOpenChat || 'Open Chat'}</span>
-                    </button>
-                  </div>
-                </div>
-
-                <LiveMapTracker
-                  activeBooking={{
-                    quote: {
-                      worker: WORKERS_DATABASE[0],
-                      quoteAmount: activeOrder?.quoteAmount || 350,
-                      etaMins: 8
-                    }
-                  }}
-                  onConfirmCompletion={() => alert(`Job marked completed by ${workerName}! Waiting for customer inspection.`)}
-                  onOpenSos={() => alert('Worker Safety SOS triggered to Mumbai Police.')}
-                  selectedWorker={WORKERS_DATABASE[0]}
-                  onSelectWorker={() => {}}
-                  onOpenChat={() => setWorkerTab('chat')}
-                  lang={workerLang}
-                />
-              </>
-            )}
           </div>
         )}
 
@@ -1336,108 +1375,6 @@ export const BoltWorkerPortal = ({ onSwitchUser, lang = 'en', currentUser = null
                 </div>
 
               </div>
-            </div>
-          </div>
-        )}
-
-        {/* Booking request from a notification: accept or send your own price */}
-        {negotiatingOrder && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in" onClick={() => setNegotiatingId(null)}>
-            <div className="bg-white rounded-3xl p-5 sm:p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-2xl border border-slate-200 space-y-4 relative" onClick={(e) => e.stopPropagation()}>
-              <div className="flex items-center justify-between">
-                <h3 className="text-lg font-display font-bold text-slate-900">Booking request</h3>
-                <button onClick={() => setNegotiatingId(null)} className="p-2 rounded-full hover:bg-slate-100 text-slate-400 hover:text-slate-600" aria-label="Close"><X className="w-5 h-5" /></button>
-              </div>
-                  {[negotiatingOrder].map((req) => {
-                    const myTurn = req.lastOfferBy === 'customer' || req.customerAgreed;
-                    const custFirst = (req.customerName || 'Customer').split(' ')[0];
-                    return (
-                      <div key={req.id} id={`req-${req.id}`} className={`p-5 rounded-2xl border space-y-4 ${myTurn ? 'bg-amber-50/50 border-amber-300' : 'bg-slate-50/70 border-slate-200'}`}>
-                        <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
-                          <div className="space-y-1">
-                            <div className="flex flex-wrap items-center gap-2">
-                              <span className="text-[11px] font-bold uppercase text-primary-800 bg-primary-100 px-2 py-0.5 rounded border border-primary-200">
-                                {req.categoryName || 'Home Service'}
-                              </span>
-                              <span className="text-xs text-slate-400">• {req.urgency || 'Today'}</span>
-                            </div>
-                            <h3 className="text-base font-display font-bold text-slate-900">{req.title}</h3>
-                            <p className="text-xs text-slate-600">{req.description}</p>
-                            <p className="text-[11px] text-slate-500 flex items-center gap-1">
-                              <MapPin className="w-3.5 h-3.5 text-slate-400" /> {req.customerName || 'Customer'} • {req.address}
-                            </p>
-                          </div>
-                          <div className="sm:text-right shrink-0">
-                            <span className="text-[11px] text-slate-400 block">Current price</span>
-                            <span className="text-2xl font-display font-black text-slate-900">₹{req.quoteAmount}</span>
-                            {req.budgetRange && (
-                              <span className="text-[11px] text-slate-500 block">Budget ₹{req.budgetRange.min}–₹{req.budgetRange.max}</span>
-                            )}
-                          </div>
-                        </div>
-
-                        {/* Offer history */}
-                        {(req.offers || []).length > 0 && (
-                          <div className="flex flex-wrap gap-2">
-                            {req.offers.map((o, i) => (
-                              <span key={i} className={`px-2.5 py-1 rounded-full text-[11px] font-bold border ${o.by === 'worker' ? 'bg-[#149B8B]/10 text-[#0f7a6e] border-[#149B8B]/30' : 'bg-white text-slate-700 border-slate-200'}`}>
-                                {o.by === 'worker' ? 'You' : custFirst}: ₹{o.amount}
-                              </span>
-                            ))}
-                          </div>
-                        )}
-
-                        <p className={`text-xs font-bold ${myTurn ? 'text-amber-800' : 'text-slate-500'}`}>
-                          {req.customerAgreed
-                            ? `${custFirst} agreed to ₹${req.quoteAmount}. Accept to confirm the order.`
-                            : myTurn
-                            ? `${custFirst} offered ₹${req.quoteAmount}. Accept or send your price.`
-                            : `You offered ₹${req.quoteAmount}. Waiting for ${custFirst} to reply.`}
-                        </p>
-
-                        <div className="pt-3 border-t border-slate-200 flex flex-col sm:flex-row items-stretch sm:items-end gap-3">
-                          {myTurn && (
-                            <button
-                              onClick={() => { workerAcceptBooking(req.id); playAudioCue('match_success'); refreshOrders(); setNegotiatingId(null); }}
-                              className="px-5 py-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs flex items-center justify-center gap-1.5 shadow-sm"
-                            >
-                              <CheckCircle2 className="w-4 h-4" /> Accept order at ₹{req.quoteAmount}
-                            </button>
-                          )}
-                          <form
-                            onSubmit={(e) => { e.preventDefault(); handlePlaceBid(req.id); }}
-                            className="flex flex-1 flex-col sm:flex-row items-stretch sm:items-end gap-3"
-                          >
-                            <label className="block">
-                              <span className="text-[11px] font-bold text-slate-600 block mb-1">{myTurn ? 'Or send your price (₹)' : 'Change your price (₹)'}</span>
-                              <div className="relative">
-                                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-sm">₹</span>
-                                <input
-                                  type="number"
-                                  min="1"
-                                  inputMode="numeric"
-                                  placeholder={`e.g. ${(req.quoteAmount || 300) + 50}`}
-                                  value={bidPrices[req.id] || ''}
-                                  onChange={(e) => {
-                                    setBidPrices((p) => ({ ...p, [req.id]: e.target.value }));
-                                    setBidErrors((p) => ({ ...p, [req.id]: '' }));
-                                  }}
-                                  className="w-full sm:w-36 pl-7 pr-3 py-2.5 rounded-xl bg-white border border-slate-300 focus:ring-2 focus:ring-[#149B8B] text-sm font-bold text-slate-900"
-                                />
-                              </div>
-                            </label>
-                            <button type="submit" className="btn-primary text-xs px-5 py-3 shadow-sm flex items-center justify-center gap-1.5">
-                              <ArrowRight className="w-3.5 h-3.5" />
-                              <span>Send price</span>
-                            </button>
-                            {bidErrors[req.id] && (
-                              <span className="text-[11px] font-bold text-rose-600 self-center">{bidErrors[req.id]}</span>
-                            )}
-                          </form>
-                        </div>
-                      </div>
-                    );
-                  })}
             </div>
           </div>
         )}

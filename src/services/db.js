@@ -176,6 +176,21 @@ export const workerAcceptBooking = (bookingId) => {
     `${firstName(b.worker?.name, 'Your worker')} accepted your order for ${b.categoryName || 'your job'} at ₹${b.quoteAmount}.`, 'accepted'));
 };
 
+// Worker cancels an accepted order; the customer is told and pays nothing.
+export const workerCancelBooking = (bookingId, reason = 'Worker could not take the job') => {
+  const b = bookings.find(x => x.id === bookingId);
+  if (!b) return null;
+  return replaceBooking(withNotice({
+    ...b,
+    status: 'cancelled',
+    cancelledBy: 'worker',
+    cancelledAt: new Date().toISOString(),
+    cancellationReason: reason,
+    cancellationFee: 0,
+    refundAmount: b.quoteAmount || 0
+  }, 'customer', `${firstName(b.worker?.name, 'Your worker')} cancelled your order for ${b.categoryName || 'your job'}. You will not be charged.`, 'cancelled'));
+};
+
 // All notifications for one side, newest first. Each carries its booking id.
 export const getNotifications = (to, filterBooking = () => true) =>
   bookings
