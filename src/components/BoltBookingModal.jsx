@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
+import { NearbyWorkersMap, CUSTOMER_LOCATION, distanceKm } from './NearbyWorkersMap';
 import { 
   X, 
   Clock, 
@@ -56,49 +57,44 @@ export const BoltBookingModal = ({ isOpen, onClose, initialCategory, onBookingCo
     return cat.name;
   };
 
+  // Workers near the customer for the chosen service (closest first), shown on the live map
+  const nearbyWorkers = useMemo(() => {
+    const sameTrade = WORKERS_DATABASE.filter((w) => w.trade === category?.id && w.lat && w.lng);
+    const pool = sameTrade.length ? sameTrade : WORKERS_DATABASE.filter((w) => w.lat && w.lng);
+    return pool
+      .map((w) => {
+        const km = distanceKm([w.lat, w.lng], CUSTOMER_LOCATION);
+        return { ...w, distanceKm: Math.round(km * 10) / 10, etaMins: Math.max(3, Math.round(km * 4)) };
+      })
+      .sort((a, b) => a.distanceKm - b.distanceKm)
+      .slice(0, 6);
+  }, [category?.id]);
+
+  const bidHighlightIds = useMemo(() => bids.map((b) => b.worker.id), [bids]);
+
+  const makeBid = (idx, quoteAmount) => {
+    const w = nearbyWorkers[idx];
+    if (!w) return null;
+    return { id: `b-${idx + 1}`, worker: w, quoteAmount, etaMins: w.etaMins, distanceKm: w.distanceKm, counterState: null };
+  };
+
   const handleSubmitRequest = (e) => {
     e.preventDefault();
-    setStep(2); // Broadcast
+    setBids([]);
+    setStep(2); // Live map of nearby workers while the request broadcasts
     playAudioCue('bid_received');
 
     setTimeout(() => {
-      setStep(3); // Show bids
-      const initialBids = [
-        {
-          id: 'b-1',
-          worker: WORKERS_DATABASE[0], // Rameshwar Jadhav
-          quoteAmount: 350,
-          etaMins: 8,
-          distanceKm: 1.2,
-          counterState: null
-        },
-        {
-          id: 'b-2',
-          worker: WORKERS_DATABASE[1], // Sunita Devi
-          quoteAmount: 320,
-          etaMins: 15,
-          distanceKm: 2.1,
-          counterState: null
-        }
-      ];
-      setBids(initialBids);
+      setStep(3); // Show bids (map stays on top)
+      setBids([makeBid(0, 350), makeBid(1, 320)].filter(Boolean));
       playAudioCue('bid_received');
-    }, 1800);
+    }, 4500);
 
     setTimeout(() => {
-      setBids((prev) => [
-        ...prev,
-        {
-          id: 'b-3',
-          worker: WORKERS_DATABASE[2], // Farooq Ansari
-          quoteAmount: 420,
-          etaMins: 22,
-          distanceKm: 2.8,
-          counterState: null
-        }
-      ]);
+      if (nearbyWorkers.length < 3) return;
+      setBids((prev) => [...prev, makeBid(2, 420)]);
       playAudioCue('bid_received');
-    }, 4000);
+    }, 7000);
   };
 
   const handleApplyCounter = (bidId) => {
@@ -437,19 +433,36 @@ export const BoltBookingModal = ({ isOpen, onClose, initialCategory, onBookingCo
 
           {/* STEP 2: BROADCASTING RADAR */}
           {step === 2 && (
-            <div className="text-center py-12 space-y-4">
-              <div className="w-16 h-16 rounded-full bg-primary-50 border-2 border-primary-500 mx-auto flex items-center justify-center animate-ping-slow text-primary-600">
-                <Radio className="w-8 h-8 animate-pulse" />
+            <div className="space-y-4">
+              {/* Live map of nearby workers */}
+              <NearbyWorkersMap workers={nearbyWorkers} height={260} />
+
+              <div className="flex items-center gap-2 text-xs font-bold text-[#0A2540]">
+                <Radio className="w-4 h-4 text-[#149B8B] animate-pulse" />
+                <span>{t.matchingRadarTitle}</span>
               </div>
-              <h4 className="text-xl font-display font-bold text-slate-900">
-                {t.matchingRadarTitle}
-              </h4>
-              <p className="text-xs text-slate-600 max-w-sm mx-auto">
-                {t.step2Subtitle}
-              </p>
+
+              {/* Nearby workers list */}
+              <div className="divide-y divide-slate-100 border border-slate-200 rounded-2xl overflow-hidden">
+                {nearbyWorkers.map((w) => (
+                  <div key={w.id} className="flex items-center gap-3 p-3 bg-white">
+                    <img src={w.photo} alt={w.name} className="w-11 h-11 rounded-full object-cover border-2 border-[#0A2540]/80" />
+                    <div className="flex-1 min-w-0">
+                      <div className="font-bold text-sm text-slate-900 truncate">{w.name}</div>
+                      <div className="text-[11px] text-slate-500">
+                        {w.etaMins} mins away • {w.distanceKm} km • ★ {w.rating}
+                      </div>
+                    </div>
+                    {w.hourlyRate ? <div className="text-sm font-bold text-[#0A2540]">₹{w.hourlyRate}</div> : null}
+                  </div>
+                ))}
+                {!nearbyWorkers.length && (
+                  <div className="p-4 text-xs text-slate-500 text-center">No workers nearby right now.</div>
+                )}
+              </div>
 
               {/* Cancel Button during broadcasting */}
-              <div className="pt-4">
+              <div className="pt-2 text-center">
                 <button
                   type="button"
                   onClick={() => {
@@ -472,6 +485,8 @@ export const BoltBookingModal = ({ isOpen, onClose, initialCategory, onBookingCo
           {/* STEP 3: LIVE BIDS STREAM & DIRECT NEGOTIATION */}
           {step === 3 && (
             <div className="space-y-4">
+              {/* Live map: workers who bid are highlighted and head toward the customer */}
+              <NearbyWorkersMap workers={nearbyWorkers} highlightIds={bidHighlightIds} height={220} />
               <div className="flex items-center justify-between text-xs pb-2 border-b border-slate-100">
                 <span className="font-bold text-emerald-700 flex items-center gap-1.5">
                   <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
