@@ -1,13 +1,13 @@
 import React from 'react';
-import logoImg from '../assets/kaamsetu-logo-full.jpg';
-import emblemImg from '../assets/kaamsetu-emblem.jpg';
+import logoImg from '../assets/kaamsetu-logo-full-navy-teal.png';
+import emblemImg from '../assets/kaamsetu-emblem-navy-teal.png';
 
 export const KaamSetuLogo = ({ size = 'md', isWhite = false, showTagline = true, variant = 'standard', onClick }) => {
   const isSmall = size === 'sm';
   const isLarge = size === 'lg';
 
-  const iconSize = isSmall ? 'w-9 h-9' : isLarge ? 'w-16 h-16 sm:w-20 sm:h-20' : 'w-11 h-11';
-  const textSize = isSmall ? 'text-xl' : isLarge ? 'text-3xl sm:text-4xl' : 'text-2xl';
+  const iconSize = isSmall ? 'w-12 h-12' : isLarge ? 'w-20 h-20 sm:w-24 sm:h-24' : 'w-14 h-14';
+  const textSize = isSmall ? 'text-2xl' : isLarge ? 'text-4xl sm:text-5xl' : 'text-3xl';
 
   // Standalone full badge variant (used e.g. in auth / hero showcase)
   if (variant === 'full') {
@@ -20,7 +20,7 @@ export const KaamSetuLogo = ({ size = 'md', isWhite = false, showTagline = true,
           <img 
             src={logoImg} 
             alt="KaamSetu - Local Help. Real People. Fair Prices." 
-            className="w-44 h-44 sm:w-52 sm:h-52 object-contain rounded-xl"
+            className="w-56 h-56 sm:w-64 sm:h-64 object-contain rounded-xl"
           />
         </div>
       </div>
@@ -41,17 +41,17 @@ export const KaamSetuLogo = ({ size = 'md', isWhite = false, showTagline = true,
         />
       </div>
 
-      {/* Aesthetic Wordmark: Kaam (Forest Green) + Setu (Saffron Orange) */}
+      {/* Aesthetic Wordmark: Kaam (Navy) + Setu (Teal) */}
       <div className="flex flex-col justify-center">
         <div className="flex items-baseline">
           <span className={`font-display font-extrabold tracking-tight leading-none ${textSize} ${isWhite ? 'text-white' : ''}`}>
-            <span className={isWhite ? 'text-emerald-400' : 'text-[#0e6237]'}>Kaam</span>
-            <span className={isWhite ? 'text-orange-400' : 'text-[#f36f13]'}>Setu</span>
+            <span className={isWhite ? 'text-sky-200' : 'text-[#0A2540]'}>Kaam</span>
+            <span className={isWhite ? 'text-teal-300' : 'text-[#149B8B]'}>Setu</span>
           </span>
-          <span className={`w-1.5 h-1.5 rounded-full ml-1 self-baseline ${isWhite ? 'bg-orange-400' : 'bg-[#f36f13]'}`} />
+          <span className={`w-1.5 h-1.5 rounded-full ml-1 self-baseline ${isWhite ? 'bg-teal-300' : 'bg-[#149B8B]'}`} />
         </div>
         {showTagline && !isSmall && (
-          <span className={`text-[9px] sm:text-[10px] font-semibold tracking-tight leading-tight mt-0.5 ${isWhite ? 'text-slate-300' : 'text-slate-500'}`}>
+          <span className={`text-[10px] sm:text-[11px] font-semibold tracking-tight leading-tight mt-0.5 ${isWhite ? 'text-slate-300' : 'text-slate-500'}`}>
             Local Help • Real People • Fair Prices
           </span>
         )}
