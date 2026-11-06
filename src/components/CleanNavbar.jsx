@@ -33,10 +33,8 @@ export const CleanNavbar = ({
   const navItems = [
     { id: 'home', label: t.navHome, icon: Home },
     { id: 'services', label: t.navServices, icon: Wrench },
-    { id: 'safety', label: t.navSafety, icon: ShieldCheck },
     { id: 'workers', label: t.navWorkers, icon: Users },
-    { id: 'my-bookings', label: t.navMyBookings, icon: Calendar, badge: bookingsCount > 0 ? bookingsCount : null },
-    { id: 'tracker', label: t.navLiveMap, icon: MapPin }
+    { id: 'my-bookings', label: t.navMyBookings, icon: Calendar, badge: bookingsCount > 0 ? bookingsCount : null }
   ];
 
   return (

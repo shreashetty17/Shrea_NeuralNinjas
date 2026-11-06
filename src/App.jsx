@@ -80,6 +80,13 @@ export function App() {
     return () => window.removeEventListener(DB_SYNC_EVENT, onSync);
   }, []);
 
+  // "Live Map" now lives on the Workers page: links to it scroll down to the map
+  useEffect(() => {
+    if (activePage !== 'tracker') return;
+    const id = setTimeout(() => document.getElementById('live-map')?.scrollIntoView({ behavior: 'smooth' }), 50);
+    return () => clearTimeout(id);
+  }, [activePage, activeBooking]);
+
   const handleOpenBookForCategory = (cat) => {
     setSelectedCategoryForBooking(cat);
     setIsBookingModalOpen(true);
@@ -133,7 +140,7 @@ export function App() {
       {/* Top Clean Navbar */}
       <CleanNavbar
         currentUser={currentUser}
-        activePage={activePage}
+        activePage={activePage === 'tracker' ? 'workers' : activePage}
         setActivePage={setActivePage}
         onOpenBookModal={() => setIsBookingModalOpen(true)}
         onOpenSos={() => setSosModalOpen(true)}
@@ -193,7 +200,7 @@ export function App() {
         )}
 
         {/* PAGE 5: WORKERS DIRECTORY */}
-        {activePage === 'workers' && (
+        {(activePage === 'workers' || activePage === 'tracker') && (
           <CustomerWorkers
             onSelectWorkerToBook={(worker) => {
               const matchedCat = SERVICE_CATEGORIES.find((c) => c.id === worker.trade) || SERVICE_CATEGORIES[0];
@@ -221,8 +228,10 @@ export function App() {
           />
         )}
 
-        {/* PAGE 7: LIVE MAP TRACKER */}
-        {activePage === 'tracker' && (
+        {/* LIVE MAP (shown on the Workers page) */}
+        {(activePage === 'workers' || activePage === 'tracker') && (
+          <section id="live-map" className="mt-12 space-y-4 scroll-mt-24">
+            <h2 className="text-2xl sm:text-3xl font-display font-bold text-[#0A2540]">{t.navLiveMap || 'Live Map'}</h2>
           <CustomerTrackingPage
             activeBooking={{
               quote: {
@@ -246,6 +255,7 @@ export function App() {
             }}
             lang={lang}
           />
+          </section>
         )}
 
       </main>
