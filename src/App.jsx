@@ -9,7 +9,7 @@ import { CustomerSafety } from './pages/CustomerSafety';
 import { CustomerWorkers } from './pages/CustomerWorkers';
 import { CustomerMyBookings } from './pages/CustomerMyBookings';
 import { BookingDetailPage } from './pages/BookingDetailPage';
-import { CustomerWorkerChatPopup } from './components/CustomerWorkerChatPopup';
+
 import { CancellationModal } from './components/CancellationModal';
 import { BoltWorkerPortal } from './components/BoltWorkerPortal';
 import { BoltBookingModal } from './components/BoltBookingModal';
@@ -157,10 +157,10 @@ export function App() {
             onNavigatePage={setActivePage}
             onOpenChat={() => {
               if (chatBooking?.worker) {
-                setIsChatOpen(true);
+                setActiveBooking(chatBooking); setActivePage('tracker');
               } else if (bookings.length > 0) {
                 setChatBooking(bookings[0]);
-                setIsChatOpen(true);
+                setActiveBooking(bookings[0]); setActivePage('tracker');
               }
             }}
             hasActiveBooking={Boolean(chatBooking?.worker || bookings.some(b => b.worker))}
@@ -215,7 +215,7 @@ export function App() {
             }}
             onChatWithWorker={(bk) => {
               setChatBooking(bk);
-              setIsChatOpen(true);
+              setActiveBooking(bk); setActivePage('tracker');
             }}
             onBookNewService={() => setIsBookingModalOpen(true)}
             onUpdateBookings={() => setBookings(getBookings())}
@@ -239,6 +239,7 @@ export function App() {
             customer={currentUser}
             onBack={() => setActivePage('my-bookings')}
             onCancelBooking={(bk) => setCancellingBookingGlobal(bk)}
+            onBookingUpdated={() => setBookings(getBookings())}
           />
         )}
 
@@ -251,23 +252,6 @@ export function App() {
         initialCategory={selectedCategoryForBooking}
         onBookingConfirmed={handleBookingConfirmed}
         currentUser={currentUser}
-        lang={lang}
-      />
-
-      {/* Direct Customer-Worker Chat Popup (ONLY pops up when a service is booked!) */}
-      <CustomerWorkerChatPopup
-        isOpen={isChatOpen}
-        onClose={(shouldOpen) => {
-          if (shouldOpen === true) {
-            setIsChatOpen(true);
-          } else {
-            setIsChatOpen(false);
-          }
-        }}
-        booking={activePage === 'tracker' ? null : (chatBooking || activeBooking || (bookings.length > 0 ? bookings[0] : null))}
-        customer={currentUser}
-        onOpenMap={() => { if (chatBooking) setActiveBooking(chatBooking); setActivePage('tracker'); }}
-        onCancelBooking={(bk) => setCancellingBookingGlobal(bk)}
         lang={lang}
       />
 

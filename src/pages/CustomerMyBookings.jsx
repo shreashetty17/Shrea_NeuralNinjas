@@ -242,65 +242,15 @@ export const CustomerMyBookings = ({
 
                 </div>
 
-                {/* Bottom Action Buttons */}
+                {/* Bottom Action: View details (live map, chat, cancellation live on the booking page) */}
                 <div className="pt-4 border-t border-slate-100 flex flex-wrap items-center justify-between gap-3">
-                  <div className="flex items-center gap-2">
-                    
-                    {/* Track on Live Map */}
-                    {!isCompleted && (
-                      <button
-                        onClick={() => onTrackBooking(bk)}
-                        className="btn-primary text-xs px-4 py-2.5 shadow-xs flex items-center gap-1.5"
-                      >
-                        <Navigation className="w-3.5 h-3.5" />
-                        <span>{t.btnTrackMap}</span>
-                      </button>
-                    )}
-
-                    {/* Direct Chat with Worker (Enabled because worker IS booked!) */}
-                    {!isCancelled && (
-                      <button
-                        onClick={() => onChatWithWorker(bk)}
-                        className="px-4 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold text-xs border border-slate-200 transition-colors flex items-center gap-1.5"
-                      >
-                        <MessageSquare className="w-3.5 h-3.5 text-primary-600" />
-                        <span>{t.btnChatWorker}</span>
-                      </button>
-                    )}
-
-                    {/* Cancel Booking Button (Can cancel at any time with policy notice) */}
-                    {!isCompleted && !isCancelled && (
-                      <button
-                        onClick={() => setCancellingBooking(bk)}
-                        className="px-3.5 py-2.5 rounded-xl text-rose-600 hover:bg-rose-50 hover:border-rose-300 font-bold text-xs border border-rose-200 transition-colors flex items-center gap-1.5"
-                        title="Cancel this booking and review cancellation charges"
-                      >
-                        <X className="w-3.5 h-3.5" />
-                        <span>{t.cancelBookingBtn}</span>
-                      </button>
-                    )}
-
-                    {isCancelled && (
-                      <button
-                        onClick={onBookNewService}
-                        className="px-4 py-2.5 rounded-xl bg-primary-50 text-primary-700 hover:bg-primary-100 font-bold text-xs border border-primary-200 transition-colors flex items-center gap-1.5"
-                      >
-                        <span>{t.rebookServiceBtn}</span>
-                      </button>
-                    )}
-
-                  </div>
-
-                  {/* Release Escrow Button if not completed */}
-                  {!isCompleted && !isCancelled && (
-                    <button
-                      onClick={() => handleReleaseEscrow(bk.id, worker.name, bk.quoteAmount)}
-                      className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs transition-colors flex items-center gap-1.5 shadow-xs ml-auto"
-                    >
-                      <CheckCircle2 className="w-3.5 h-3.5" />
-                      <span>{t.btnReleaseEscrow} (₹{bk.quoteAmount})</span>
-                    </button>
-                  )}
+                  <button
+                    onClick={() => onTrackBooking(bk)}
+                    className="btn-primary text-xs px-5 py-2.5 shadow-xs flex items-center gap-1.5"
+                  >
+                    <span>View details</span>
+                    <ArrowRight className="w-3.5 h-3.5" />
+                  </button>
 
                   {isCompleted && (
                     <span className="text-xs text-emerald-700 font-bold flex items-center gap-1 ml-auto">

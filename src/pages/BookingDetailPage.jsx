@@ -5,7 +5,7 @@ import {
 } from 'lucide-react';
 import { NearbyWorkersMap, CUSTOMER_LOCATION, distanceKm } from '../components/NearbyWorkersMap';
 import { WORKERS_DATABASE } from '../data/mockData';
-import { getChatMessages, sendChatMessage } from '../services/db';
+import { getChatMessages, sendChatMessage, updateBookingStatus } from '../services/db';
 
 const STATUS = {
   en_route: { label: 'On the way', cls: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
@@ -147,7 +147,7 @@ const Detail = ({ icon: Icon, label, value }) => (
 );
 
 // One booking: live map of its worker, details, chat and cancellation.
-export const BookingDetailPage = ({ booking, customer, onBack, onCancelBooking }) => {
+export const BookingDetailPage = ({ booking, customer, onBack, onCancelBooking, onBookingUpdated }) => {
   // the worker with a map position (bookings store a snapshot; fall back to the workers table)
   const worker = useMemo(() => {
     const w = booking?.worker || {};
@@ -226,12 +226,28 @@ export const BookingDetailPage = ({ booking, customer, onBack, onCancelBooking }
 
           {/* Cancellation */}
           {!isClosed ? (
-            <button
-              onClick={() => onCancelBooking(booking)}
-              className="w-full py-3.5 rounded-2xl border border-rose-200 bg-white text-rose-600 hover:bg-rose-50 font-bold text-sm flex items-center justify-center gap-2 transition-colors"
-            >
-              <X className="w-4 h-4" /> Cancel booking
-            </button>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <button
+                onClick={() => {
+                  updateBookingStatus(booking.id, 'completed');
+                  if (onBookingUpdated) onBookingUpdated();
+                  alert(`Job marked as completed. Please pay ₹${booking.quoteAmount ?? ''} to ${worker.name || 'the worker'}. Thank you for using KaamSetu!`);
+                }}
+                className="py-3.5 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm flex items-center justify-center gap-2 transition-colors"
+              >
+                <CheckCircle2 className="w-4 h-4" /> Mark as Completed
+              </button>
+              <button
+                onClick={() => onCancelBooking(booking)}
+                className="py-3.5 rounded-2xl border border-rose-200 bg-white text-rose-600 hover:bg-rose-50 font-bold text-sm flex items-center justify-center gap-2 transition-colors"
+              >
+                <X className="w-4 h-4" /> Cancel booking
+              </button>
+            </div>
+          ) : booking.status === 'completed' ? (
+            <div className="p-4 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-700 text-sm font-semibold flex items-center gap-2">
+              <CheckCircle2 className="w-4 h-4" /> Job completed
+            </div>
           ) : booking.status === 'cancelled' ? (
             <div className="p-4 rounded-2xl bg-rose-50 border border-rose-200 text-rose-700 text-sm font-semibold flex items-center gap-2">
               <AlertTriangle className="w-4 h-4" />
