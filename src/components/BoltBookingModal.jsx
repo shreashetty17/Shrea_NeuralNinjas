@@ -15,7 +15,7 @@ import {
   AlertCircle
 } from 'lucide-react';
 import { SERVICE_CATEGORIES, WORKERS_DATABASE, playAudioCue } from '../data/mockData';
-import { addBooking, createBookingRequest, cancelBooking } from '../services/db';
+import { addBooking, createBookingRequest, cancelBooking, getBookings } from "../services/db";
 import { CancellationModal } from './CancellationModal';
 import { TRANSLATIONS } from '../data/translations';
 
@@ -96,23 +96,41 @@ export const BoltBookingModal = ({ isOpen, onClose, initialCategory, onBookingCo
     return { id: `b-${idx + 1}`, worker: w, quoteAmount, etaMins: w.etaMins, distanceKm: w.distanceKm, counterState: null };
   };
 
+  // Customer's own price for the job (their bid). Workers accept it or send a new price.
+  const [offerPrice, setOfferPrice] = useState(350);
+
   const handleSubmitRequest = (e) => {
     e.preventDefault();
+    const amount = Math.max(100, Number(offerPrice) || 0);
     setBids([]);
-    setStep(2); // Live map of nearby workers while the request broadcasts
+    setStep(2); // Live map of nearby workers while the request is sent
     playAudioCue('bid_received');
 
-    setTimeout(() => {
-      setStep(3); // Show bids (map stays on top)
-      setBids([makeBid(0, 350), makeBid(1, 320)].filter(Boolean));
-      playAudioCue('bid_received');
-    }, 4500);
+    // Save the bid request in Supabase: it shows up on workers' Active Orders page
+    const request = createBookingRequest({
+      category: category.id,
+      categoryName: getCategoryName(category),
+      title: `${getCategoryName(category)} - ${(subService || description).slice(0, 40)}`,
+      description,
+      address,
+      customerName: customerName.trim() || currentUser?.name || null,
+      customerPhone: customerPhone.trim() || currentUser?.phone || currentUser?.email || null,
+      urgency: timingType === 'immediate' ? t.slotImmediate : `${t.slotScheduled} (${selectedDate})`,
+      timingSlot: { type: timingType, date: selectedDate, timeSlot: selectedSlot, exactTime: exactTime || '18:45' },
+      budgetRange: { min: minBudget, max: maxBudget },
+      quoteAmount: amount,
+      worker: null,
+      escrowLocked: false
+    });
 
+    setSavedBooking(request); // lets "Cancel" on the map screen cancel this request
+    // after a moment on the map, open the booking page where bids and negotiation happen
     setTimeout(() => {
-      if (nearbyWorkers.length < 3) return;
-      setBids((prev) => [...prev, makeBid(2, 420)]);
-      playAudioCue('bid_received');
-    }, 7000);
+      if (getBookings().find((b) => b.id === request.id)?.status === "cancelled") return;
+      setSavedBooking(null);
+      setStep(1);
+      if (onBookingConfirmed) onBookingConfirmed(request);
+    }, 3000);
   };
 
   const handleApplyCounter = (bidId) => {
@@ -458,6 +476,20 @@ export const BoltBookingModal = ({ isOpen, onClose, initialCategory, onBookingCo
                 <p className="text-[10px] text-slate-500">
                   {t.floorNoticeText}
                 </p>
+              </div>
+
+              {/* Customer bid: the price they offer for the job */}
+              <div className="p-3.5 rounded-2xl bg-[#149B8B]/5 border border-[#149B8B]/30 space-y-1.5">
+                <label className="text-xs font-bold text-slate-700 block">Your bid price (₹)</label>
+                <input
+                  type="number"
+                  min="100"
+                  value={offerPrice}
+                  onChange={(e) => setOfferPrice(e.target.value)}
+                  className="w-full px-3 py-2 rounded-xl bg-white border border-slate-300 text-slate-900 font-mono font-bold text-base"
+                  required
+                />
+                <p className="text-[10px] text-slate-500">Nearby workers get your bid. They can accept it or send their price. You and the worker can each change the price up to 3 times.</p>
               </div>
 
               <button

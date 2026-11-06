@@ -5,7 +5,7 @@ import {
 } from 'lucide-react';
 import { NearbyWorkersMap, CUSTOMER_LOCATION, distanceKm } from '../components/NearbyWorkersMap';
 import { WORKERS_DATABASE } from '../data/mockData';
-import { getChatMessages, sendChatMessage, updateBookingStatus, proposePrice, customerAgreePrice } from '../services/db';
+import { getChatMessages, sendChatMessage, updateBookingStatus, proposePrice, customerAgreePrice, countersLeft, MAX_COUNTERS } from "../services/db";
 
 const STATUS = {
   negotiating: { label: 'Waiting for worker', cls: 'bg-amber-50 text-amber-700 border-amber-200' },
@@ -66,7 +66,7 @@ export const BookingChat = ({ booking, customer, disabled, role = "customer" }) 
     if (!body) return;
     setText('');
     post(role, body);
-    if (isWorker) return; // the customer replies themselves
+    if (isWorker || booking.worker?.authUserId) return; // real people reply themselves
 
     // demo: the technician replies automatically
     setWorkerTyping(true);
@@ -146,14 +146,18 @@ const NegotiationPanel = ({ booking, workerName, onUpdated }) => {
   const [price, setPrice] = useState('');
   const [error, setError] = useState('');
   const offers = booking.offers || [];
+  const hasWorker = !!booking.worker?.name;
   const workerFirst = (workerName || 'The worker').split(' ')[0];
   const workerTurn = booking.lastOfferBy === 'customer' || booking.customerAgreed;
+  const left = countersLeft(booking, 'customer');
+  const workerLeft = countersLeft(booking, 'worker');
 
   const sendPrice = (e) => {
     e.preventDefault();
     const amount = parseInt(price, 10);
-    if (!amount || amount <= 0) { setError('Enter a price first.'); return; }
-    proposePrice(booking.id, 'customer', amount);
+    if (!amount || amount < 100) { setError('Enter a price of at least ₹100.'); return; }
+    const res = proposePrice(booking.id, 'customer', amount);
+    if (res?.error) { setError(res.error); return; }
     setPrice('');
     setError('');
     if (onUpdated) onUpdated();
@@ -163,13 +167,15 @@ const NegotiationPanel = ({ booking, workerName, onUpdated }) => {
     <div className="bg-white rounded-3xl border-2 border-amber-200 shadow-bolt-sm p-6 space-y-5">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h3 className="font-display font-bold text-lg text-slate-900">Price negotiation</h3>
+          <h3 className="font-display font-bold text-lg text-slate-900">Bids & negotiation</h3>
           <p className="text-xs text-slate-500 mt-0.5">
-            {booking.customerAgreed
+            {!hasWorker
+              ? 'Your bid request was sent to nearby workers. You will be notified when a worker accepts or sends a price.'
+              : booking.customerAgreed
               ? `You agreed to ₹${booking.quoteAmount}. Waiting for ${workerFirst} to confirm the order.`
               : workerTurn
-              ? `Your offer was sent. Waiting for ${workerFirst} to accept or send a new price.`
-              : `${workerFirst} sent a new price. Agree to it or send your own.`}
+              ? `Your price was sent. Waiting for ${workerFirst} to accept or send a new price.`
+              : `${workerFirst} sent a price. Agree to it or send your own.`}
           </p>
         </div>
         <div className="text-right">
@@ -183,7 +189,7 @@ const NegotiationPanel = ({ booking, workerName, onUpdated }) => {
           {offers.map((o, i) => (
             <li key={i} className={`flex ${o.by === 'customer' ? 'justify-end' : 'justify-start'}`}>
               <span className={`px-3.5 py-2 rounded-2xl text-xs font-bold ${o.by === 'customer' ? 'bg-[#149B8B] text-white' : 'bg-slate-100 text-slate-800 border border-slate-200'}`}>
-                {o.by === 'customer' ? 'You' : workerFirst} offered ₹{o.amount}
+                {o.by === 'customer' ? (i === 0 ? 'Your bid' : 'You') : workerFirst}: ₹{o.amount}
                 <span className={`ml-2 font-normal ${o.by === 'customer' ? 'text-white/70' : 'text-slate-400'}`}>{timeOf(o.at)}</span>
               </span>
             </li>
@@ -191,7 +197,14 @@ const NegotiationPanel = ({ booking, workerName, onUpdated }) => {
         </ol>
       )}
 
-      {!workerTurn && (
+      {hasWorker && (
+        <div className="grid grid-cols-2 gap-3 text-[11px] font-bold">
+          <span className="px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-slate-600">Your price changes left: {left} of {MAX_COUNTERS}</span>
+          <span className="px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-slate-600">{workerFirst}'s changes left: {workerLeft} of {MAX_COUNTERS}</span>
+        </div>
+      )}
+
+      {hasWorker && !workerTurn && (
         <button
           onClick={() => { customerAgreePrice(booking.id); if (onUpdated) onUpdated(); }}
           className="w-full py-3 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm flex items-center justify-center gap-2"
@@ -200,23 +213,31 @@ const NegotiationPanel = ({ booking, workerName, onUpdated }) => {
         </button>
       )}
 
-      <form onSubmit={sendPrice} className="flex flex-col sm:flex-row items-stretch sm:items-end gap-3 pt-3 border-t border-slate-100">
-        <label className="flex-1">
-          <span className="text-[11px] font-bold text-slate-600 block mb-1">{workerTurn ? 'Change your offer (₹)' : 'Send your price (₹)'}</span>
-          <input
-            type="number"
-            min="1"
-            inputMode="numeric"
-            value={price}
-            onChange={(e) => { setPrice(e.target.value); setError(''); }}
-            placeholder={`e.g. ${Math.max(100, (booking.quoteAmount || 300) - 50)}`}
-            className="w-full px-4 py-2.5 rounded-xl border border-slate-300 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-[#149B8B]/40"
-          />
-        </label>
-        <button type="submit" className="px-5 py-3 rounded-xl bg-[#0A2540] hover:bg-[#0A2540]/90 text-white font-bold text-xs flex items-center justify-center gap-1.5">
-          <Send className="w-3.5 h-3.5" /> Send price
-        </button>
-      </form>
+      {left > 0 ? (
+        <form onSubmit={sendPrice} className="flex flex-col sm:flex-row items-stretch sm:items-end gap-3 pt-3 border-t border-slate-100">
+          <label className="flex-1">
+            <span className="text-[11px] font-bold text-slate-600 block mb-1">
+              {hasWorker ? `Send a new price (₹) • ${left} left` : `Change your bid (₹) • ${left} left`}
+            </span>
+            <input
+              type="number"
+              min="100"
+              inputMode="numeric"
+              value={price}
+              onChange={(e) => { setPrice(e.target.value); setError(''); }}
+              placeholder={`e.g. ${Math.max(100, (booking.quoteAmount || 300) - 50)}`}
+              className="w-full px-4 py-2.5 rounded-xl border border-slate-300 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-[#149B8B]/40"
+            />
+          </label>
+          <button type="submit" className="px-5 py-3 rounded-xl bg-[#0A2540] hover:bg-[#0A2540]/90 text-white font-bold text-xs flex items-center justify-center gap-1.5">
+            <Send className="w-3.5 h-3.5" /> Send price
+          </button>
+        </form>
+      ) : (
+        <p className="pt-3 border-t border-slate-100 text-xs font-bold text-slate-500">
+          You have used all {MAX_COUNTERS} price changes. {hasWorker && !workerTurn ? 'You can agree to the current price or cancel the booking.' : 'Waiting for the worker.'}
+        </p>
+      )}
       {error && <p className="text-xs font-bold text-rose-600">{error}</p>}
     </div>
   );
@@ -244,7 +265,13 @@ export const BookingDetailPage = ({ booking, customer, onBack, onCancelBooking, 
     const lng = w.lng ?? fromDb.lng ?? CUSTOMER_LOCATION[1] + 0.01;
     return { ...fromDb, ...w, id: w.id ?? fromDb.id ?? 'worker', lat, lng, photo: w.photo || fromDb.photo };
   }, [booking?.id, booking?.worker?.id]);
-  const mapWorkers = useMemo(() => [worker], [worker]);
+  const hasWorker = !!booking?.worker?.name;
+  // before a worker bids, show the nearby workers the request was sent to
+  const nearby = useMemo(() => {
+    const same = WORKERS_DATABASE.filter((w) => w.trade === booking?.category && w.lat && w.lng);
+    return (same.length ? same : WORKERS_DATABASE.filter((w) => w.lat && w.lng)).slice(0, 6);
+  }, [booking?.category]);
+  const mapWorkers = useMemo(() => (hasWorker ? [worker] : nearby), [hasWorker, worker, nearby]);
 
   if (!booking) {
     return (
@@ -275,7 +302,7 @@ export const BookingDetailPage = ({ booking, customer, onBack, onCancelBooking, 
       <h1 className="text-2xl sm:text-3xl font-display font-bold text-[#0A2540]">{booking.title}</h1>
 
       {/* Live map: only this worker */}
-      <NearbyWorkersMap workers={mapWorkers} highlightIds={[worker.id]} height={380} label={mapLabel} live={!isClosed} />
+      <NearbyWorkersMap workers={mapWorkers} highlightIds={hasWorker ? [worker.id] : []} height={380} label={hasWorker ? mapLabel : `Bid request sent to ${nearby.length} nearby workers • Live`} live={!isClosed} />
 
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
         {/* Details */}
@@ -283,6 +310,11 @@ export const BookingDetailPage = ({ booking, customer, onBack, onCancelBooking, 
           {isNegotiating && <NegotiationPanel booking={booking} workerName={worker.name} onUpdated={onBookingUpdated} />}
 
           {/* Worker */}
+          {!hasWorker ? (
+            <div className="bg-white rounded-3xl border border-slate-200/90 shadow-bolt-sm p-5 text-sm font-semibold text-slate-600">
+              Waiting for a worker to accept your bid or send a price…
+            </div>
+          ) : (
           <div className="bg-white rounded-3xl border border-slate-200/90 shadow-bolt-sm p-5 flex items-center gap-4">
             <img src={worker.photo} alt={worker.name} className="w-16 h-16 rounded-2xl object-cover border border-slate-200" />
             <div className="flex-1 min-w-0">
@@ -299,6 +331,7 @@ export const BookingDetailPage = ({ booking, customer, onBack, onCancelBooking, 
               </a>
             )}
           </div>
+          )}
 
           {/* Booking details */}
           <div className="bg-white rounded-3xl border border-slate-200/90 shadow-bolt-sm p-6 grid grid-cols-1 sm:grid-cols-2 gap-5">
@@ -351,7 +384,11 @@ export const BookingDetailPage = ({ booking, customer, onBack, onCancelBooking, 
 
         {/* Chat */}
         <div className="lg:col-span-2">
-          <BookingChat booking={booking} customer={customer} disabled={booking.status === 'cancelled'} />
+          {hasWorker ? (
+            <BookingChat booking={booking} customer={customer} disabled={booking.status === "cancelled"} />
+          ) : (
+            <div className="bg-white rounded-3xl border border-slate-200/90 shadow-bolt-sm p-6 text-center text-xs text-slate-500">Chat opens once a worker responds to your bid.</div>
+          )}
         </div>
       </div>
     </div>

@@ -40,7 +40,7 @@ import { KaamSetuLogo } from './KaamSetuLogo';
 import { CustomerWorkerChat } from './CustomerWorkerChat';
 import { LiveMapTracker } from './LiveMapTracker';
 import { WORKERS_DATABASE, playAudioCue } from '../data/mockData';
-import { getBookings, updateBookingStatus, verifyBookingOtp, saveUser, proposePrice, workerAcceptBooking, getNotifications } from '../services/db';
+import { getBookings, updateBookingStatus, verifyBookingOtp, saveUser, proposePrice, workerAcceptBooking, getNotifications, countersLeft, MAX_COUNTERS } from "../services/db";
 import { NotificationBell } from './NotificationBell';
 import { WorkerOrderDetail } from "./WorkerOrderDetail";
 import { TRANSLATIONS } from '../data/translations';
@@ -58,6 +58,26 @@ export const BoltWorkerPortal = ({ onSwitchUser, lang = 'en', currentUser = null
 
   const t = TRANSLATIONS[workerLang] || TRANSLATIONS.en;
   const workerName = currentUser?.name || 'Technician';
+
+  // This worker's details, saved on a booking when they bid or accept (shown to the customer)
+  const myWorkerInfo = (() => {
+    const initial = (workerName || "W").trim().charAt(0).toUpperCase();
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="120" height="120"><rect width="120" height="120" fill="#0A2540"/><text x="60" y="78" font-size="56" font-family="Arial" font-weight="700" fill="white" text-anchor="middle">${initial}</text></svg>`;
+    const spot = WORKERS_DATABASE.find((w) => w.lat && w.lng) || {};
+    return {
+      id: `worker_${currentUser?.authUserId || currentUser?.phone || currentUser?.email || "me"}`,
+      authUserId: currentUser?.authUserId || currentUser?.phone || currentUser?.email || "me",
+      name: workerName,
+      phone: currentUser?.phone || "",
+      tradeLabel: currentUser?.tradeLabel || currentUser?.trade || "Verified Technician",
+      locality: currentUser?.locality || "Mumbai",
+      rating: 4.9,
+      photo: currentUser?.avatar || `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`,
+      lat: spot.lat, lng: spot.lng
+    };
+  })();
+  // a booking is visible to this worker unless another real worker has taken it
+  const isMineOrOpen = (b) => !b.worker?.authUserId || b.worker.authUserId === myWorkerInfo.authUserId;
 
   // Worker Document Vault state
   const [govtIdDoc, setGovtIdDoc] = useState(
@@ -146,8 +166,8 @@ export const BoltWorkerPortal = ({ onSwitchUser, lang = 'en', currentUser = null
   // DB Bookings & Orders
   const [allBookings, setOrders] = useState([]);
   // requests still being negotiated are shown separately; everything else is an order
-  const negotiatingOrders = allBookings.filter((b) => b.status === 'negotiating');
-  const orders = allBookings.filter((b) => b.status !== 'negotiating');
+  const negotiatingOrders = allBookings.filter((b) => b.status === "negotiating" && isMineOrOpen(b));
+  const orders = allBookings.filter((b) => b.status !== "negotiating" && isMineOrOpen(b));
   const [orderFilter, setOrderFilter] = useState('all'); // 'all' | 'pending_otp' | 'in_progress' | 'cancelled' | 'completed'
   const [enteredOtps, setEnteredOtps] = useState({});
   const [otpErrors, setOtpErrors] = useState({});
@@ -246,19 +266,23 @@ export const BoltWorkerPortal = ({ onSwitchUser, lang = 'en', currentUser = null
   const [bidErrors, setBidErrors] = useState({});
   const handlePlaceBid = (reqId) => {
     const amount = parseInt(bidPrices[reqId], 10);
-    if (!amount || amount <= 0) {
-      setBidErrors((p) => ({ ...p, [reqId]: 'Enter a price first.' }));
+    if (!amount || amount < 100) {
+      setBidErrors((p) => ({ ...p, [reqId]: "Enter a price of at least ₹100." }));
       return;
     }
-    // save the new price in Supabase; the customer gets a notification
-    proposePrice(reqId, 'worker', amount);
+    // save the new price in Supabase; both sides get a notification
+    const res = proposePrice(reqId, "worker", amount, myWorkerInfo);
+    if (res?.error) {
+      setBidErrors((p) => ({ ...p, [reqId]: res.error }));
+      return;
+    }
     setBidPrices((p) => ({ ...p, [reqId]: '' }));
     playAudioCue('match_success');
     refreshOrders();
   };
 
   // Bell: notifications for the worker (new bookings, price changes, cancellations)
-  const workerNotifications = getNotifications('worker');
+  const workerNotifications = getNotifications("worker", isMineOrOpen);
   // Booking request opened from a notification, and the order opened for map + chat
   const [selectedOrderId, setSelectedOrderId] = useState(null);
   const selectedOrder = orders.find((b) => b.id === selectedOrderId) || null;
@@ -499,8 +523,8 @@ export const BoltWorkerPortal = ({ onSwitchUser, lang = 'en', currentUser = null
             <div className="bg-white border border-slate-200/90 rounded-3xl p-6 sm:p-8 shadow-bolt-sm space-y-5">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                 <div>
-                  <h2 className="text-xl font-display font-bold text-slate-900">New booking requests</h2>
-                  <p className="text-xs text-slate-500 mt-0.5">Customers who booked you. Accept their price or send your own. The order is confirmed when you accept.</p>
+                  <h2 className="text-xl font-display font-bold text-slate-900">Bid requests</h2>
+                  <p className="text-xs text-slate-500 mt-0.5">Bid requests from customers. Accept their price or send your own (up to 3 times). The order is confirmed when you accept.</p>
                 </div>
                 <span className="self-start sm:self-center flex items-center gap-1.5 text-xs text-emerald-800 font-bold bg-emerald-100 px-3 py-1.5 rounded-xl border border-emerald-200">
                   <Radio className="w-3.5 h-3.5 animate-pulse text-emerald-600" />
@@ -562,18 +586,19 @@ export const BoltWorkerPortal = ({ onSwitchUser, lang = 'en', currentUser = null
                         <div className="pt-3 border-t border-slate-200 flex flex-col sm:flex-row items-stretch sm:items-end gap-3">
                           {myTurn && (
                             <button
-                              onClick={() => { workerAcceptBooking(req.id); playAudioCue('match_success'); refreshOrders(); }}
+                              onClick={() => { workerAcceptBooking(req.id, myWorkerInfo); playAudioCue('match_success'); refreshOrders(); }}
                               className="px-5 py-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs flex items-center justify-center gap-1.5 shadow-sm"
                             >
                               <CheckCircle2 className="w-4 h-4" /> Accept order at ₹{req.quoteAmount}
                             </button>
                           )}
+                          {countersLeft(req, "worker") > 0 ? (
                           <form
                             onSubmit={(e) => { e.preventDefault(); handlePlaceBid(req.id); }}
                             className="flex flex-1 flex-col sm:flex-row items-stretch sm:items-end gap-3"
                           >
                             <label className="block">
-                              <span className="text-[11px] font-bold text-slate-600 block mb-1">{myTurn ? 'Or send your price (₹)' : 'Change your price (₹)'}</span>
+                              <span className="text-[11px] font-bold text-slate-600 block mb-1">{myTurn ? "Or send your price (₹)" : "Change your price (₹)"} • {countersLeft(req, "worker")} of {MAX_COUNTERS} left</span>
                               <div className="relative">
                                 <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-sm">₹</span>
                                 <input
@@ -598,6 +623,9 @@ export const BoltWorkerPortal = ({ onSwitchUser, lang = 'en', currentUser = null
                               <span className="text-[11px] font-bold text-rose-600 self-center">{bidErrors[req.id]}</span>
                             )}
                           </form>
+                          ) : (
+                            <p className="text-xs font-bold text-slate-500 self-center">You have used all {MAX_COUNTERS} price changes.{myTurn ? " Accept the order or wait for the customer." : " Waiting for the customer."}</p>
+                          )}
                         </div>
                       </div>
                     );

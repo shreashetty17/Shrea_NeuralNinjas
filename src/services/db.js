@@ -112,20 +112,43 @@ export const cancelBooking = (bookingId, reason = 'Customer requested cancellati
 // --- NEGOTIATION & NOTIFICATIONS ---
 // Offers and notifications live inside the booking row (bookings.data), so both the
 // customer and the worker see them through the normal Supabase sync.
+// Flow: customer sends a bid request -> worker accepts or sends a price -> each side can
+// send up to MAX_COUNTERS new prices -> the worker accepts to confirm the order.
+export const MAX_COUNTERS = 3;
+
+const makeNotice = (to, text, type) => ({
+  id: `n_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+  to,
+  type,
+  text,
+  at: new Date().toISOString()
+});
+
 const withNotice = (b, to, text, type = 'info') => ({
   ...b,
-  notifications: [
-    ...(b.notifications || []),
-    { id: `n_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`, to, type, text, at: new Date().toISOString() }
-  ]
+  notifications: [...(b.notifications || []), makeNotice(to, text, type)]
+});
+
+// one message for the other side, one confirmation for the side that acted
+const withNotices = (b, list) => ({
+  ...b,
+  notifications: [...(b.notifications || []), ...list.map(([to, text, type]) => makeNotice(to, text, type))]
 });
 
 const firstName = (name, fallback) => (name || fallback).split(' ')[0];
 
-// Customer books a worker: the request goes to the worker as the first offer.
+// How many new prices a side has sent (the customer's opening bid does not count).
+export const countersUsed = (b, by) => {
+  const n = (b?.offers || []).filter(o => o.by === by).length;
+  return by === 'customer' ? Math.max(0, n - 1) : n;
+};
+export const countersLeft = (b, by) => Math.max(0, MAX_COUNTERS - countersUsed(b, by));
+
+// Customer sends a bid request to nearby workers at their own price.
 export const createBookingRequest = (booking) => {
   const amount = booking.quoteAmount;
   const now = new Date().toISOString();
+  const job = booking.categoryName || 'a job';
   const base = {
     ...booking,
     status: 'negotiating',
@@ -134,46 +157,68 @@ export const createBookingRequest = (booking) => {
     customerAgreed: false
   };
   const who = firstName(booking.customerName, 'A customer');
-  return addBooking(withNotice(base, 'worker', `${who} booked you for ${booking.categoryName || 'a job'} at ₹${amount}. Accept or send your price.`, 'booked'));
+  return addBooking(withNotices(base, [
+    ['worker', `New bid request: ${who} needs ${job} at ₹${amount}. Accept or send your price.`, 'booked'],
+    ['customer', `Your bid request for ${job} at ₹${amount} was sent to nearby workers.`, 'booked']
+  ]));
 };
 
-// Either side proposes a new price.
-export const proposePrice = (bookingId, by, amount) => {
+// Either side sends a new price. `worker` = the worker's details when the worker bids.
+export const proposePrice = (bookingId, by, amount, worker) => {
   const b = bookings.find(x => x.id === bookingId);
-  if (!b || !amount) return null;
+  if (!b || !amount) return { error: 'Booking not found.' };
+  if (countersLeft(b, by) <= 0) return { error: `You can send a new price only ${MAX_COUNTERS} times.` };
   const updated = {
     ...b,
+    worker: by === 'worker' && worker ? worker : b.worker,
     quoteAmount: amount,
     offers: [...(b.offers || []), { by, amount, at: new Date().toISOString() }],
     lastOfferBy: by,
     customerAgreed: false
   };
-  const text = by === 'worker'
-    ? `${firstName(b.worker?.name, 'The worker')} sent a new price for ${b.categoryName || 'your job'}: ₹${amount}.`
-    : `${firstName(b.customerName, 'The customer')} changed the offer for ${b.categoryName || 'the job'} to ₹${amount}.`;
-  return replaceBooking(withNotice(updated, by === 'worker' ? 'customer' : 'worker', text, 'bid'));
+  const job = b.categoryName || 'the job';
+  const left = countersLeft(updated, by);
+  const workerName = firstName(updated.worker?.name, 'The worker');
+  const customerName = firstName(b.customerName, 'The customer');
+  const notices = by === 'worker'
+    ? [
+        ['customer', `${workerName} sent a price for ${job}: ₹${amount}. Agree or send your price.`, 'bid'],
+        ['worker', `You sent ₹${amount} to ${customerName} for ${job}. ${left} price change${left === 1 ? '' : 's'} left.`, 'bid']
+      ]
+    : [
+        ['worker', `${customerName} sent a new price for ${job}: ₹${amount}. Accept or send your price.`, 'bid'],
+        ['customer', `You sent ₹${amount} to ${workerName} for ${job}. ${left} price change${left === 1 ? '' : 's'} left.`, 'bid']
+      ];
+  return { booking: replaceBooking(withNotices(updated, notices)) };
 };
 
 // Customer agrees to the worker's price; the worker still confirms the order.
 export const customerAgreePrice = (bookingId) => {
   const b = bookings.find(x => x.id === bookingId);
   if (!b) return null;
-  return replaceBooking(withNotice({ ...b, customerAgreed: true }, 'worker',
-    `${firstName(b.customerName, 'The customer')} agreed to ₹${b.quoteAmount} for ${b.categoryName || 'the job'}. Accept to confirm the order.`, 'bid'));
+  const job = b.categoryName || 'the job';
+  return replaceBooking(withNotices({ ...b, customerAgreed: true }, [
+    ['worker', `${firstName(b.customerName, 'The customer')} agreed to ₹${b.quoteAmount} for ${job}. Accept to confirm the order.`, 'bid'],
+    ['customer', `You agreed to ₹${b.quoteAmount}. Waiting for ${firstName(b.worker?.name, 'the worker')} to confirm.`, 'bid']
+  ]));
 };
 
 // Worker accepts the order at the current price.
-export const workerAcceptBooking = (bookingId) => {
+export const workerAcceptBooking = (bookingId, worker) => {
   const b = bookings.find(x => x.id === bookingId);
   if (!b) return null;
   const updated = {
     ...b,
+    worker: worker || b.worker,
     status: b.timingSlot?.type === 'scheduled' ? 'scheduled' : 'en_route',
     acceptedAt: new Date().toISOString(),
     customerAgreed: true
   };
-  return replaceBooking(withNotice(updated, 'customer',
-    `${firstName(b.worker?.name, 'Your worker')} accepted your order for ${b.categoryName || 'your job'} at ₹${b.quoteAmount}.`, 'accepted'));
+  const job = b.categoryName || 'your job';
+  return replaceBooking(withNotices(updated, [
+    ['customer', `${firstName(updated.worker?.name, 'Your worker')} accepted your order for ${job} at ₹${b.quoteAmount}.`, 'accepted'],
+    ['worker', `You accepted ${firstName(b.customerName, 'the customer')}'s order for ${job} at ₹${b.quoteAmount}. It is now in My Orders.`, 'accepted']
+  ]));
 };
 
 // Worker cancels an accepted order; the customer is told and pays nothing.

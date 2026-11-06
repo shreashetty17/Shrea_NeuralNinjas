@@ -191,7 +191,7 @@ export const CustomerMyBookings = ({
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-1">
                         <h4 className="font-display font-bold text-sm text-slate-900 truncate">
-                          {worker.name}
+                          {worker.name || 'Waiting for a worker to bid'}
                         </h4>
                         <ShieldCheck className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
                       </div>
