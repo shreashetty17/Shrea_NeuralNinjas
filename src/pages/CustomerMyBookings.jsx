@@ -168,7 +168,14 @@ export const CustomerMyBookings = ({
                 <div className="grid grid-cols-1 md:grid-cols-12 gap-6 items-center">
                   
                   {/* Worker Profile Card */}
-                  <div className="md:col-span-5 flex items-center gap-3.5 p-3.5 bg-slate-50 rounded-2xl border border-slate-200/80">
+                  <div
+                    role="button"
+                    tabIndex={0}
+                    onClick={() => onTrackBooking(bk)}
+                    onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onTrackBooking(bk); } }}
+                    title="Open live tracking, chat and booking details"
+                    className="md:col-span-5 flex items-center gap-3.5 p-3.5 bg-slate-50 rounded-2xl border border-slate-200/80 cursor-pointer hover:border-[#149B8B] hover:bg-[#149B8B]/5 hover:shadow-sm transition-all"
+                  >
                     <img
                       src={worker.photo || 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=250&q=80'}
                       alt={worker.name}
@@ -192,7 +199,8 @@ export const CustomerMyBookings = ({
                     </div>
 
                     <a
-                      href={`tel:${worker.phone || '+919820044102'}`}
+                      href={`tel:${(worker.phone || '').replace(/[^0-9+]/g, '')}`}
+                      onClick={(e) => e.stopPropagation()}
                       className="p-2.5 rounded-xl bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 shadow-xs transition-colors shrink-0"
                       title="Call Worker"
                     >

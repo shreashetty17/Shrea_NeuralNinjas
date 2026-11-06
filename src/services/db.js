@@ -138,6 +138,12 @@ export const logChatMessage = (bookingId, sender, text) => {
   insert('chat_messages', { booking_id: bookingId, sender, text }).catch(warn('chat save'));
 };
 
+// Save a chat message and wait for Supabase (used by the booking page chat)
+export const sendChatMessage = async (bookingId, sender, text) => {
+  if (!bookingId || !text) return;
+  await insert('chat_messages', { booking_id: bookingId, sender, text });
+};
+
 export const getChatMessages = async (bookingId) => {
   if (!bookingId) return [];
   try {

@@ -38,7 +38,7 @@ const workerIcon = (w, highlighted) =>
 
 // Live map of nearby workers, shown while a request is broadcasting and bids arrive.
 // `workers` = nearby workers to show; `highlightIds` = workers who have sent a bid.
-export const NearbyWorkersMap = ({ workers = [], highlightIds = [], height = 260 }) => {
+export const NearbyWorkersMap = ({ workers = [], highlightIds = [], height = 260, label, live = true }) => {
   const containerRef = useRef(null);
   const mapRef = useRef(null);
   const layerRef = useRef(null);
@@ -95,6 +95,7 @@ export const NearbyWorkersMap = ({ workers = [], highlightIds = [], height = 260
     }
     draw();
 
+    if (!live) return;
     const timer = setInterval(() => {
       workers.forEach((w) => {
         const [lat, lng] = positionsRef.current[w.id];
@@ -115,7 +116,7 @@ export const NearbyWorkersMap = ({ workers = [], highlightIds = [], height = 260
       <div ref={containerRef} style={{ height }} className="w-full z-0" />
       <div className="absolute top-3 left-3 z-[400] px-3 py-1.5 rounded-full bg-white/95 shadow text-[11px] font-bold text-[#0A2540] flex items-center gap-1.5">
         <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-        <span>{workers.length} workers nearby • Live</span>
+        <span>{label || `${workers.length} workers nearby • Live`}</span>
       </div>
     </div>
   );

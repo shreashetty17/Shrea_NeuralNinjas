@@ -8,7 +8,7 @@ import { CustomerHowItWorks } from './pages/CustomerHowItWorks';
 import { CustomerSafety } from './pages/CustomerSafety';
 import { CustomerWorkers } from './pages/CustomerWorkers';
 import { CustomerMyBookings } from './pages/CustomerMyBookings';
-import { CustomerTrackingPage } from './pages/CustomerTrackingPage';
+import { BookingDetailPage } from './pages/BookingDetailPage';
 import { CustomerWorkerChatPopup } from './components/CustomerWorkerChatPopup';
 import { CancellationModal } from './components/CancellationModal';
 import { BoltWorkerPortal } from './components/BoltWorkerPortal';
@@ -81,13 +81,6 @@ export function App() {
     return () => window.removeEventListener(DB_SYNC_EVENT, onSync);
   }, []);
 
-  // "Live Map" now lives on the Workers page: links to it scroll down to the map
-  useEffect(() => {
-    if (activePage !== 'tracker') return;
-    const id = setTimeout(() => document.getElementById('live-map')?.scrollIntoView({ behavior: 'smooth' }), 50);
-    return () => clearTimeout(id);
-  }, [activePage, activeBooking]);
-
   const handleOpenBookForCategory = (cat) => {
     setSelectedCategoryForBooking(cat);
     setIsBookingModalOpen(true);
@@ -141,7 +134,7 @@ export function App() {
       {/* Top Clean Navbar */}
       <CleanNavbar
         currentUser={currentUser}
-        activePage={activePage === 'tracker' ? 'workers' : activePage}
+        activePage={activePage === 'tracker' ? 'my-bookings' : activePage}
         setActivePage={setActivePage}
         onOpenBookModal={() => setIsBookingModalOpen(true)}
         onOpenSos={() => setSosModalOpen(true)}
@@ -201,7 +194,7 @@ export function App() {
         )}
 
         {/* PAGE 5: WORKERS DIRECTORY */}
-        {(activePage === 'workers' || activePage === 'tracker') && (
+        {activePage === 'workers' && (
           <CustomerWorkers
             onSelectWorkerToBook={(worker) => {
               const matchedCat = SERVICE_CATEGORIES.find((c) => c.id === worker.trade) || SERVICE_CATEGORIES[0];
@@ -238,34 +231,14 @@ export function App() {
           />
         )}
 
-        {/* LIVE MAP (shown on the Workers page) */}
-        {(activePage === 'workers' || activePage === 'tracker') && (
-          <section id="live-map" className="mt-12 space-y-4 scroll-mt-24">
-            <h2 className="text-2xl sm:text-3xl font-display font-bold text-[#0A2540]">{t.navLiveMap || 'Live Map'}</h2>
-          <CustomerTrackingPage
-            activeBooking={{
-              quote: {
-                worker: activeBooking?.worker || WORKERS_DATABASE[0],
-                quoteAmount: activeBooking?.quoteAmount || 350,
-                etaMins: activeBooking?.etaMins || 8
-              }
-            }}
-            onConfirmCompletion={() => {
-              if (activeBooking) {
-                alert(`Escrow released for ${activeBooking.title}`);
-              }
-            }}
-            onOpenSos={() => setSosModalOpen(true)}
-            onOpenChatPopup={() => {
-              setChatBooking(activeBooking || (bookings.length > 0 ? bookings[0] : null));
-              setIsChatOpen(true);
-            }}
-            onCancelBooking={(bk) => {
-              setCancellingBookingGlobal(activeBooking || (bookings.length > 0 ? bookings[0] : null));
-            }}
-            lang={lang}
+        {/* BOOKING PAGE: live map of the booked worker, details, chat, cancellation */}
+        {activePage === 'tracker' && (
+          <BookingDetailPage
+            booking={bookings.find((b) => b.id === activeBooking?.id) || activeBooking}
+            customer={currentUser}
+            onBack={() => setActivePage('my-bookings')}
+            onCancelBooking={(bk) => setCancellingBookingGlobal(bk)}
           />
-          </section>
         )}
 
       </main>
@@ -290,9 +263,9 @@ export function App() {
             setIsChatOpen(false);
           }
         }}
-        booking={chatBooking || activeBooking || (bookings.length > 0 ? bookings[0] : null)}
+        booking={activePage === 'tracker' ? null : (chatBooking || activeBooking || (bookings.length > 0 ? bookings[0] : null))}
         customer={currentUser}
-        onOpenMap={() => setActivePage('tracker')}
+        onOpenMap={() => { if (chatBooking) setActiveBooking(chatBooking); setActivePage('tracker'); }}
         onCancelBooking={(bk) => setCancellingBookingGlobal(bk)}
         lang={lang}
       />
@@ -380,9 +353,6 @@ export function App() {
             </button>
             <button onClick={() => setActivePage('my-bookings')} className="hover:text-primary-600 transition-colors font-extrabold text-secondary-600">
               {t.navMyBookings}
-            </button>
-            <button onClick={() => setActivePage('tracker')} className="hover:text-primary-600 transition-colors">
-              {t.navLiveMap}
             </button>
             <button onClick={() => setIsComparisonOpen(true)} className="text-primary-600 hover:underline">
               Slide 5 Matrix
