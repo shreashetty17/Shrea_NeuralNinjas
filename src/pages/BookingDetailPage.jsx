@@ -5,9 +5,10 @@ import {
 } from 'lucide-react';
 import { NearbyWorkersMap, CUSTOMER_LOCATION, distanceKm } from '../components/NearbyWorkersMap';
 import { WORKERS_DATABASE } from '../data/mockData';
-import { getChatMessages, sendChatMessage, updateBookingStatus } from '../services/db';
+import { getChatMessages, sendChatMessage, updateBookingStatus, proposePrice, customerAgreePrice } from '../services/db';
 
 const STATUS = {
+  negotiating: { label: 'Waiting for worker', cls: 'bg-amber-50 text-amber-700 border-amber-200' },
   en_route: { label: 'On the way', cls: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
   scheduled: { label: 'Scheduled', cls: 'bg-sky-50 text-sky-700 border-sky-200' },
   in_progress: { label: 'Work in progress', cls: 'bg-amber-50 text-amber-700 border-amber-200' },
@@ -134,6 +135,87 @@ const BookingChat = ({ booking, customer, disabled }) => {
   );
 };
 
+// Price negotiation with the worker, until the worker accepts the order.
+const NegotiationPanel = ({ booking, workerName, onUpdated }) => {
+  const [price, setPrice] = useState('');
+  const [error, setError] = useState('');
+  const offers = booking.offers || [];
+  const workerFirst = (workerName || 'The worker').split(' ')[0];
+  const workerTurn = booking.lastOfferBy === 'customer' || booking.customerAgreed;
+
+  const sendPrice = (e) => {
+    e.preventDefault();
+    const amount = parseInt(price, 10);
+    if (!amount || amount <= 0) { setError('Enter a price first.'); return; }
+    proposePrice(booking.id, 'customer', amount);
+    setPrice('');
+    setError('');
+    if (onUpdated) onUpdated();
+  };
+
+  return (
+    <div className="bg-white rounded-3xl border-2 border-amber-200 shadow-bolt-sm p-6 space-y-5">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h3 className="font-display font-bold text-lg text-slate-900">Price negotiation</h3>
+          <p className="text-xs text-slate-500 mt-0.5">
+            {booking.customerAgreed
+              ? `You agreed to ₹${booking.quoteAmount}. Waiting for ${workerFirst} to confirm the order.`
+              : workerTurn
+              ? `Your offer was sent. Waiting for ${workerFirst} to accept or send a new price.`
+              : `${workerFirst} sent a new price. Agree to it or send your own.`}
+          </p>
+        </div>
+        <div className="text-right">
+          <span className="text-[10px] uppercase font-bold text-slate-400 block">Current price</span>
+          <span className="text-2xl font-display font-black text-[#0A2540]">₹{booking.quoteAmount}</span>
+        </div>
+      </div>
+
+      {offers.length > 0 && (
+        <ol className="space-y-2">
+          {offers.map((o, i) => (
+            <li key={i} className={`flex ${o.by === 'customer' ? 'justify-end' : 'justify-start'}`}>
+              <span className={`px-3.5 py-2 rounded-2xl text-xs font-bold ${o.by === 'customer' ? 'bg-[#149B8B] text-white' : 'bg-slate-100 text-slate-800 border border-slate-200'}`}>
+                {o.by === 'customer' ? 'You' : workerFirst} offered ₹{o.amount}
+                <span className={`ml-2 font-normal ${o.by === 'customer' ? 'text-white/70' : 'text-slate-400'}`}>{timeOf(o.at)}</span>
+              </span>
+            </li>
+          ))}
+        </ol>
+      )}
+
+      {!workerTurn && (
+        <button
+          onClick={() => { customerAgreePrice(booking.id); if (onUpdated) onUpdated(); }}
+          className="w-full py-3 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm flex items-center justify-center gap-2"
+        >
+          <CheckCircle2 className="w-4 h-4" /> Agree to ₹{booking.quoteAmount}
+        </button>
+      )}
+
+      <form onSubmit={sendPrice} className="flex flex-col sm:flex-row items-stretch sm:items-end gap-3 pt-3 border-t border-slate-100">
+        <label className="flex-1">
+          <span className="text-[11px] font-bold text-slate-600 block mb-1">{workerTurn ? 'Change your offer (₹)' : 'Send your price (₹)'}</span>
+          <input
+            type="number"
+            min="1"
+            inputMode="numeric"
+            value={price}
+            onChange={(e) => { setPrice(e.target.value); setError(''); }}
+            placeholder={`e.g. ${Math.max(100, (booking.quoteAmount || 300) - 50)}`}
+            className="w-full px-4 py-2.5 rounded-xl border border-slate-300 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-[#149B8B]/40"
+          />
+        </label>
+        <button type="submit" className="px-5 py-3 rounded-xl bg-[#0A2540] hover:bg-[#0A2540]/90 text-white font-bold text-xs flex items-center justify-center gap-1.5">
+          <Send className="w-3.5 h-3.5" /> Send price
+        </button>
+      </form>
+      {error && <p className="text-xs font-bold text-rose-600">{error}</p>}
+    </div>
+  );
+};
+
 const Detail = ({ icon: Icon, label, value }) => (
   <div className="flex items-start gap-3">
     <div className="w-8 h-8 rounded-xl bg-[#149B8B]/10 text-[#149B8B] flex items-center justify-center shrink-0">
@@ -169,6 +251,7 @@ export const BookingDetailPage = ({ booking, customer, onBack, onCancelBooking, 
 
   const status = STATUS[booking.status] || STATUS.en_route;
   const isClosed = booking.status === 'completed' || booking.status === 'cancelled';
+  const isNegotiating = booking.status === "negotiating";
   const km = distanceKm([worker.lat, worker.lng], CUSTOMER_LOCATION).toFixed(1);
   const mapLabel = isClosed
     ? `${worker.name?.split(' ')[0] || 'Worker'} • ${status.label}`
@@ -191,6 +274,8 @@ export const BookingDetailPage = ({ booking, customer, onBack, onCancelBooking, 
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
         {/* Details */}
         <div className="lg:col-span-3 space-y-6">
+          {isNegotiating && <NegotiationPanel booking={booking} workerName={worker.name} onUpdated={onBookingUpdated} />}
+
           {/* Worker */}
           <div className="bg-white rounded-3xl border border-slate-200/90 shadow-bolt-sm p-5 flex items-center gap-4">
             <img src={worker.photo} alt={worker.name} className="w-16 h-16 rounded-2xl object-cover border border-slate-200" />
@@ -212,10 +297,10 @@ export const BookingDetailPage = ({ booking, customer, onBack, onCancelBooking, 
           {/* Booking details */}
           <div className="bg-white rounded-3xl border border-slate-200/90 shadow-bolt-sm p-6 grid grid-cols-1 sm:grid-cols-2 gap-5">
             <Detail icon={Navigation} label="Arrival" value={isClosed ? status.label : booking.etaMins ? `${booking.etaMins} mins • ${km} km away` : `${km} km away`} />
-            <Detail icon={IndianRupee} label="Agreed price" value={booking.quoteAmount != null ? `₹${booking.quoteAmount}` : null} />
+            <Detail icon={IndianRupee} label={isNegotiating ? "Current offer" : "Agreed price"} value={booking.quoteAmount != null ? `₹${booking.quoteAmount}` : null} />
             <Detail icon={Clock} label="Time" value={[booking.timingSlot?.date, booking.timingSlot?.timeSlot || booking.urgency].filter(Boolean).join(' • ')} />
             <Detail icon={MapPin} label="Address" value={booking.address} />
-            <Detail icon={KeyRound} label="Start OTP (share on arrival)" value={booking.startOtp} />
+            <Detail icon={KeyRound} label="Start OTP (share on arrival)" value={isNegotiating ? "Shown after the worker accepts" : booking.startOtp} />
             <Detail icon={Hash} label="Booking ID" value={booking.id} />
             {booking.description && (
               <div className="sm:col-span-2">
@@ -226,17 +311,19 @@ export const BookingDetailPage = ({ booking, customer, onBack, onCancelBooking, 
 
           {/* Cancellation */}
           {!isClosed ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <button
-                onClick={() => {
-                  updateBookingStatus(booking.id, 'completed');
-                  if (onBookingUpdated) onBookingUpdated();
-                  alert(`Job marked as completed. Please pay ₹${booking.quoteAmount ?? ''} to ${worker.name || 'the worker'}. Thank you for using KaamSetu!`);
-                }}
-                className="py-3.5 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm flex items-center justify-center gap-2 transition-colors"
-              >
-                <CheckCircle2 className="w-4 h-4" /> Mark as Completed
-              </button>
+            <div className={`grid grid-cols-1 ${isNegotiating ? '' : 'sm:grid-cols-2'} gap-3`}>
+              {!isNegotiating && (
+                <button
+                  onClick={() => {
+                    updateBookingStatus(booking.id, 'completed');
+                    if (onBookingUpdated) onBookingUpdated();
+                    alert(`Job marked as completed. Please pay ₹${booking.quoteAmount ?? ''} to ${worker.name || 'the worker'}. Thank you for using KaamSetu!`);
+                  }}
+                  className="py-3.5 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm flex items-center justify-center gap-2 transition-colors"
+                >
+                  <CheckCircle2 className="w-4 h-4" /> Mark as Completed
+                </button>
+              )}
               <button
                 onClick={() => onCancelBooking(booking)}
                 className="py-3.5 rounded-2xl border border-rose-200 bg-white text-rose-600 hover:bg-rose-50 font-bold text-sm flex items-center justify-center gap-2 transition-colors"

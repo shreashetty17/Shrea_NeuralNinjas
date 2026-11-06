@@ -40,7 +40,8 @@ import { KaamSetuLogo } from './KaamSetuLogo';
 import { CustomerWorkerChat } from './CustomerWorkerChat';
 import { LiveMapTracker } from './LiveMapTracker';
 import { WORKERS_DATABASE, playAudioCue } from '../data/mockData';
-import { getBookings, updateBookingStatus, verifyBookingOtp, saveUser } from '../services/db';
+import { getBookings, updateBookingStatus, verifyBookingOtp, saveUser, proposePrice, workerAcceptBooking, getNotifications } from '../services/db';
+import { NotificationBell } from './NotificationBell';
 import { TRANSLATIONS } from '../data/translations';
 
 export const BoltWorkerPortal = ({ onSwitchUser, lang = 'en', currentUser = null, onLanguageChange }) => {
@@ -142,7 +143,10 @@ export const BoltWorkerPortal = ({ onSwitchUser, lang = 'en', currentUser = null
   const [bidsSubmitted, setBidsSubmitted] = useState({});
 
   // DB Bookings & Orders
-  const [orders, setOrders] = useState([]);
+  const [allBookings, setOrders] = useState([]);
+  // requests still being negotiated are shown separately; everything else is an order
+  const negotiatingOrders = allBookings.filter((b) => b.status === 'negotiating');
+  const orders = allBookings.filter((b) => b.status !== 'negotiating');
   const [orderFilter, setOrderFilter] = useState('all'); // 'all' | 'pending_otp' | 'in_progress' | 'cancelled' | 'completed'
   const [enteredOtps, setEnteredOtps] = useState({});
   const [otpErrors, setOtpErrors] = useState({});
@@ -245,9 +249,21 @@ export const BoltWorkerPortal = ({ onSwitchUser, lang = 'en', currentUser = null
       setBidErrors((p) => ({ ...p, [reqId]: 'Enter a price first.' }));
       return;
     }
-    const eta = bidEtas[reqId] || '15';
-    setBidsSubmitted((prev) => ({ ...prev, [reqId]: `Bid of ₹${amount} (arrive in ${eta} min) sent!` }));
+    // save the new price in Supabase; the customer gets a notification
+    proposePrice(reqId, 'worker', amount);
+    setBidPrices((p) => ({ ...p, [reqId]: '' }));
     playAudioCue('match_success');
+    refreshOrders();
+  };
+
+  // Bell: notifications for the worker (new bookings, price changes, cancellations)
+  const workerNotifications = getNotifications('worker');
+  const openWorkerNotification = (n) => {
+    setWorkerTab('orders');
+    setTimeout(() => {
+      const el = document.getElementById(`req-${n.bookingId}`);
+      if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }, 100);
   };
 
   // Profile: manage account details
@@ -423,6 +439,13 @@ export const BoltWorkerPortal = ({ onSwitchUser, lang = 'en', currentUser = null
                 <span>{isOnline ? (t.workerOnline || 'Online') : (t.workerOffline || 'Offline')}</span>
               </button>
 
+              {/* Notifications bell */}
+              <NotificationBell
+                notifications={workerNotifications}
+                storageKey={`ks_notif_seen_worker_${currentUser?.phone || currentUser?.email || 'me'}`}
+                onOpenItem={openWorkerNotification}
+              />
+
               {/* Profile icon: opens worker profile */}
               <button
                 onClick={() => setWorkerTab('profile')}
@@ -478,107 +501,115 @@ export const BoltWorkerPortal = ({ onSwitchUser, lang = 'en', currentUser = null
         {workerTab === 'orders' && (
           <div className="space-y-6 animate-in fade-in">
             
-            {/* New requests: worker sets their own bid price */}
+            {/* Booking requests from customers: accept or send your own price */}
             <div className="bg-white border border-slate-200/90 rounded-3xl p-6 sm:p-8 shadow-bolt-sm space-y-5">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                 <div>
-                  <h2 className="text-xl font-display font-bold text-slate-900">New requests near you</h2>
-                  <p className="text-xs text-slate-500 mt-0.5">Enter your price and send a bid. The customer picks the offer they like.</p>
+                  <h2 className="text-xl font-display font-bold text-slate-900">New booking requests</h2>
+                  <p className="text-xs text-slate-500 mt-0.5">Customers who booked you. Accept their price or send your own. The order is confirmed when you accept.</p>
                 </div>
                 <span className="self-start sm:self-center flex items-center gap-1.5 text-xs text-emerald-800 font-bold bg-emerald-100 px-3 py-1.5 rounded-xl border border-emerald-200">
                   <Radio className="w-3.5 h-3.5 animate-pulse text-emerald-600" />
-                  {openRequests.length} open
+                  {negotiatingOrders.length} waiting
                 </span>
               </div>
 
-              <div className="grid grid-cols-1 gap-4">
-                {openRequests.map((req) => (
-                  <div key={req.id} className="p-5 rounded-2xl bg-slate-50/70 border border-slate-200 space-y-4">
-                    <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
-                      <div className="space-y-1">
-                        <div className="flex flex-wrap items-center gap-2">
-                          <span className="text-[11px] font-bold uppercase text-primary-800 bg-primary-100 px-2 py-0.5 rounded border border-primary-200">
-                            {req.category}
-                          </span>
-                          {req.urgent && (
-                            <span className="text-[10px] font-bold uppercase text-rose-800 bg-rose-100 px-2 py-0.5 rounded border border-rose-200">
-                              Urgent
-                            </span>
-                          )}
-                          <span className="text-xs text-slate-400">• {req.postedAgo}</span>
-                        </div>
-                        <h3 className="text-base font-display font-bold text-slate-900">{req.title}</h3>
-                        <p className="text-xs text-slate-600">{req.description}</p>
-                        <p className="text-[11px] text-slate-500 flex items-center gap-1">
-                          <MapPin className="w-3.5 h-3.5 text-slate-400" /> {req.locality} ({req.distance})
-                        </p>
-                      </div>
-                      <div className="sm:text-right shrink-0">
-                        <span className="text-[11px] text-slate-400 block">Customer budget</span>
-                        <span className="text-lg font-display font-bold text-slate-900">{req.budgetRange}</span>
-                      </div>
-                    </div>
-
-                    {bidsSubmitted[req.id] ? (
-                      <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-xs font-bold text-emerald-800 flex flex-wrap items-center justify-between gap-2">
-                        <span className="flex items-center gap-2">
-                          <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-                          {bidsSubmitted[req.id]} Waiting for the customer to accept.
-                        </span>
-                        <button
-                          onClick={() => setBidsSubmitted((p) => { const n = { ...p }; delete n[req.id]; return n; })}
-                          className="text-[11px] underline text-emerald-700"
-                        >
-                          Change bid
-                        </button>
-                      </div>
-                    ) : (
-                      <form
-                        onSubmit={(e) => { e.preventDefault(); handlePlaceBid(req.id); }}
-                        className="pt-3 border-t border-slate-200 flex flex-col sm:flex-row items-stretch sm:items-end gap-3"
-                      >
-                        <label className="block">
-                          <span className="text-[11px] font-bold text-slate-600 block mb-1">Your price (₹)</span>
-                          <div className="relative">
-                            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-sm">₹</span>
-                            <input
-                              type="number"
-                              min="1"
-                              inputMode="numeric"
-                              placeholder="e.g. 350"
-                              value={bidPrices[req.id] || ''}
-                              onChange={(e) => {
-                                setBidPrices((p) => ({ ...p, [req.id]: e.target.value }));
-                                setBidErrors((p) => ({ ...p, [req.id]: '' }));
-                              }}
-                              className="w-full sm:w-36 pl-7 pr-3 py-2.5 rounded-xl bg-white border border-slate-300 focus:ring-2 focus:ring-[#149B8B] text-sm font-bold text-slate-900"
-                            />
+              {negotiatingOrders.length === 0 ? (
+                <p className="text-center text-xs text-slate-400 py-8">No new requests right now. You'll get a notification when a customer books you.</p>
+              ) : (
+                <div className="grid grid-cols-1 gap-4">
+                  {negotiatingOrders.map((req) => {
+                    const myTurn = req.lastOfferBy === 'customer' || req.customerAgreed;
+                    const custFirst = (req.customerName || 'Customer').split(' ')[0];
+                    return (
+                      <div key={req.id} id={`req-${req.id}`} className={`p-5 rounded-2xl border space-y-4 ${myTurn ? 'bg-amber-50/50 border-amber-300' : 'bg-slate-50/70 border-slate-200'}`}>
+                        <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
+                          <div className="space-y-1">
+                            <div className="flex flex-wrap items-center gap-2">
+                              <span className="text-[11px] font-bold uppercase text-primary-800 bg-primary-100 px-2 py-0.5 rounded border border-primary-200">
+                                {req.categoryName || 'Home Service'}
+                              </span>
+                              <span className="text-xs text-slate-400">• {req.urgency || 'Today'}</span>
+                            </div>
+                            <h3 className="text-base font-display font-bold text-slate-900">{req.title}</h3>
+                            <p className="text-xs text-slate-600">{req.description}</p>
+                            <p className="text-[11px] text-slate-500 flex items-center gap-1">
+                              <MapPin className="w-3.5 h-3.5 text-slate-400" /> {req.customerName || 'Customer'} • {req.address}
+                            </p>
                           </div>
-                        </label>
-                        <label className="block">
-                          <span className="text-[11px] font-bold text-slate-600 block mb-1">Arrive in</span>
-                          <select
-                            value={bidEtas[req.id] || '15'}
-                            onChange={(e) => setBidEtas((p) => ({ ...p, [req.id]: e.target.value }))}
-                            className="w-full sm:w-32 px-3 py-2.5 rounded-xl bg-white border border-slate-300 text-sm text-slate-900"
-                          >
-                            {['10', '15', '20', '30', '45', '60'].map((m) => (
-                              <option key={m} value={m}>{m} min</option>
+                          <div className="sm:text-right shrink-0">
+                            <span className="text-[11px] text-slate-400 block">Current price</span>
+                            <span className="text-2xl font-display font-black text-slate-900">₹{req.quoteAmount}</span>
+                            {req.budgetRange && (
+                              <span className="text-[11px] text-slate-500 block">Budget ₹{req.budgetRange.min}–₹{req.budgetRange.max}</span>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Offer history */}
+                        {(req.offers || []).length > 0 && (
+                          <div className="flex flex-wrap gap-2">
+                            {req.offers.map((o, i) => (
+                              <span key={i} className={`px-2.5 py-1 rounded-full text-[11px] font-bold border ${o.by === 'worker' ? 'bg-[#149B8B]/10 text-[#0f7a6e] border-[#149B8B]/30' : 'bg-white text-slate-700 border-slate-200'}`}>
+                                {o.by === 'worker' ? 'You' : custFirst}: ₹{o.amount}
+                              </span>
                             ))}
-                          </select>
-                        </label>
-                        <button type="submit" className="btn-primary text-xs px-5 py-3 shadow-sm flex items-center justify-center gap-1.5">
-                          <ArrowRight className="w-3.5 h-3.5" />
-                          <span>Send bid</span>
-                        </button>
-                        {bidErrors[req.id] && (
-                          <span className="text-[11px] font-bold text-rose-600 self-center">{bidErrors[req.id]}</span>
+                          </div>
                         )}
-                      </form>
-                    )}
-                  </div>
-                ))}
-              </div>
+
+                        <p className={`text-xs font-bold ${myTurn ? 'text-amber-800' : 'text-slate-500'}`}>
+                          {req.customerAgreed
+                            ? `${custFirst} agreed to ₹${req.quoteAmount}. Accept to confirm the order.`
+                            : myTurn
+                            ? `${custFirst} offered ₹${req.quoteAmount}. Accept or send your price.`
+                            : `You offered ₹${req.quoteAmount}. Waiting for ${custFirst} to reply.`}
+                        </p>
+
+                        <div className="pt-3 border-t border-slate-200 flex flex-col sm:flex-row items-stretch sm:items-end gap-3">
+                          {myTurn && (
+                            <button
+                              onClick={() => { workerAcceptBooking(req.id); playAudioCue('match_success'); refreshOrders(); }}
+                              className="px-5 py-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs flex items-center justify-center gap-1.5 shadow-sm"
+                            >
+                              <CheckCircle2 className="w-4 h-4" /> Accept order at ₹{req.quoteAmount}
+                            </button>
+                          )}
+                          <form
+                            onSubmit={(e) => { e.preventDefault(); handlePlaceBid(req.id); }}
+                            className="flex flex-1 flex-col sm:flex-row items-stretch sm:items-end gap-3"
+                          >
+                            <label className="block">
+                              <span className="text-[11px] font-bold text-slate-600 block mb-1">{myTurn ? 'Or send your price (₹)' : 'Change your price (₹)'}</span>
+                              <div className="relative">
+                                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-sm">₹</span>
+                                <input
+                                  type="number"
+                                  min="1"
+                                  inputMode="numeric"
+                                  placeholder={`e.g. ${(req.quoteAmount || 300) + 50}`}
+                                  value={bidPrices[req.id] || ''}
+                                  onChange={(e) => {
+                                    setBidPrices((p) => ({ ...p, [req.id]: e.target.value }));
+                                    setBidErrors((p) => ({ ...p, [req.id]: '' }));
+                                  }}
+                                  className="w-full sm:w-36 pl-7 pr-3 py-2.5 rounded-xl bg-white border border-slate-300 focus:ring-2 focus:ring-[#149B8B] text-sm font-bold text-slate-900"
+                                />
+                              </div>
+                            </label>
+                            <button type="submit" className="btn-primary text-xs px-5 py-3 shadow-sm flex items-center justify-center gap-1.5">
+                              <ArrowRight className="w-3.5 h-3.5" />
+                              <span>Send price</span>
+                            </button>
+                            {bidErrors[req.id] && (
+                              <span className="text-[11px] font-bold text-rose-600 self-center">{bidErrors[req.id]}</span>
+                            )}
+                          </form>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
 
             {/* Quick Metrics Strip */}

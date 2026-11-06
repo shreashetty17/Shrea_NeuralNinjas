@@ -34,7 +34,7 @@ export const CustomerMyBookings = ({
 
   const filteredBookings = bookings.filter((b) => {
     if (filter === 'all') return true;
-    if (filter === 'active') return b.status === 'en_route' || b.status === 'in_progress';
+    if (filter === 'active') return b.status === 'en_route' || b.status === 'in_progress' || b.status === "negotiating";
     if (filter === 'scheduled') return b.status === 'scheduled';
     if (filter === 'completed') return b.status === 'completed';
     if (filter === 'cancelled') return b.status === 'cancelled';
@@ -134,6 +134,13 @@ export const CustomerMyBookings = ({
 
                   {/* Status Badge */}
                   <div className="shrink-0 self-start sm:self-center">
+                    {bk.status === "negotiating" && (
+                      <span className="px-3.5 py-1.5 rounded-full bg-amber-50 text-amber-800 text-xs font-bold border border-amber-200 flex items-center gap-1.5">
+                        <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
+                        <span>{bk.lastOfferBy === "worker" && !bk.customerAgreed ? `New price from worker: ₹${bk.quoteAmount}` : `Waiting for worker • ₹${bk.quoteAmount}`}</span>
+                      </span>
+                    )}
+
                     {isEnRoute && (
                       <span className="px-3.5 py-1.5 rounded-full bg-emerald-100 text-emerald-800 text-xs font-bold border border-emerald-200 flex items-center gap-1.5">
                         <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />

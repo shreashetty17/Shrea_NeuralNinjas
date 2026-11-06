@@ -14,6 +14,7 @@ import {
   Globe
 } from 'lucide-react';
 import { KaamSetuLogo } from './KaamSetuLogo';
+import { NotificationBell } from './NotificationBell';
 import { TRANSLATIONS } from '../data/translations';
 
 export const CleanNavbar = ({
@@ -26,7 +27,9 @@ export const CleanNavbar = ({
   bookingsCount = 0,
   unreadCount = 1,
   lang = 'en',
-  onLanguageChange
+  onLanguageChange,
+  notifications = [],
+  onOpenNotification
 }) => {
   const t = TRANSLATIONS[lang] || TRANSLATIONS.en;
 
@@ -111,6 +114,13 @@ export const CleanNavbar = ({
             >
               <ShieldAlert className="w-5 h-5" />
             </button>
+
+            {/* Notifications: booking accepted, new prices from the worker */}
+            <NotificationBell
+              notifications={notifications}
+              storageKey={`ks_notif_seen_customer_${currentUser?.phone || currentUser?.email || 'me'}`}
+              onOpenItem={onOpenNotification}
+            />
 
             {/* User profile icon: opens the profile page */}
             <button

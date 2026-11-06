@@ -18,7 +18,7 @@ import { GuidedDemoTour } from './components/GuidedDemoTour';
 import { TrustSafetyModal } from './components/TrustSafetyModal';
 import { KaamWalaLogo } from './components/KaamWalaLogo';
 import { SERVICE_CATEGORIES, WORKERS_DATABASE } from './data/mockData';
-import { getBookings, addBooking, cancelBooking, getUsers, setSessionUser, DB_SYNC_EVENT } from './services/db';
+import { getBookings, addBooking, cancelBooking, getUsers, setSessionUser, getNotifications, DB_SYNC_EVENT } from './services/db';
 import { TRANSLATIONS } from './data/translations';
 import { signOut } from './services/supabase';
 
@@ -142,6 +142,8 @@ export function App() {
         onSwitchUser={() => { signOut(); setCurrentUser(null); }}
         bookingsCount={bookings.filter(b => b.status === 'en_route' || b.status === 'scheduled').length}
         unreadCount={activeBooking?.worker ? 1 : 0}
+        notifications={currentUser ? getNotifications('customer', (b) => [currentUser.phone, currentUser.email].filter(Boolean).includes(b.customerPhone) || (!!currentUser.name && b.customerName === currentUser.name)) : []}
+        onOpenNotification={(n) => { const bk = bookings.find((b) => b.id === n.bookingId); if (bk) { setActiveBooking(bk); setActivePage('tracker'); window.scrollTo({ top: 0, behavior: 'smooth' }); } }}
         lang={lang}
         onLanguageChange={setLang}
       />

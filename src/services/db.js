@@ -95,8 +95,9 @@ export const updateBookingStatus = (bookingId, status) => {
 export const cancelBooking = (bookingId, reason = 'Customer requested cancellation', fee = 50) => {
   const b = bookings.find(x => x.id === bookingId);
   if (!b) return null;
+  const notified = withNotice(b, 'worker', `${(b.customerName || 'The customer').split(' ')[0]} cancelled the booking for ${b.categoryName || 'the job'}.`, 'cancelled');
   return replaceBooking({
-    ...b,
+    ...notified,
     status: 'cancelled',
     cancelledAt: new Date().toISOString(),
     cancellationReason: reason,
@@ -107,6 +108,80 @@ export const cancelBooking = (bookingId, reason = 'Customer requested cancellati
     escrowLocked: false
   });
 };
+
+// --- NEGOTIATION & NOTIFICATIONS ---
+// Offers and notifications live inside the booking row (bookings.data), so both the
+// customer and the worker see them through the normal Supabase sync.
+const withNotice = (b, to, text, type = 'info') => ({
+  ...b,
+  notifications: [
+    ...(b.notifications || []),
+    { id: `n_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`, to, type, text, at: new Date().toISOString() }
+  ]
+});
+
+const firstName = (name, fallback) => (name || fallback).split(' ')[0];
+
+// Customer books a worker: the request goes to the worker as the first offer.
+export const createBookingRequest = (booking) => {
+  const amount = booking.quoteAmount;
+  const now = new Date().toISOString();
+  const base = {
+    ...booking,
+    status: 'negotiating',
+    offers: [{ by: 'customer', amount, at: now }],
+    lastOfferBy: 'customer',
+    customerAgreed: false
+  };
+  const who = firstName(booking.customerName, 'A customer');
+  return addBooking(withNotice(base, 'worker', `${who} booked you for ${booking.categoryName || 'a job'} at ₹${amount}. Accept or send your price.`, 'booked'));
+};
+
+// Either side proposes a new price.
+export const proposePrice = (bookingId, by, amount) => {
+  const b = bookings.find(x => x.id === bookingId);
+  if (!b || !amount) return null;
+  const updated = {
+    ...b,
+    quoteAmount: amount,
+    offers: [...(b.offers || []), { by, amount, at: new Date().toISOString() }],
+    lastOfferBy: by,
+    customerAgreed: false
+  };
+  const text = by === 'worker'
+    ? `${firstName(b.worker?.name, 'The worker')} sent a new price for ${b.categoryName || 'your job'}: ₹${amount}.`
+    : `${firstName(b.customerName, 'The customer')} changed the offer for ${b.categoryName || 'the job'} to ₹${amount}.`;
+  return replaceBooking(withNotice(updated, by === 'worker' ? 'customer' : 'worker', text, 'bid'));
+};
+
+// Customer agrees to the worker's price; the worker still confirms the order.
+export const customerAgreePrice = (bookingId) => {
+  const b = bookings.find(x => x.id === bookingId);
+  if (!b) return null;
+  return replaceBooking(withNotice({ ...b, customerAgreed: true }, 'worker',
+    `${firstName(b.customerName, 'The customer')} agreed to ₹${b.quoteAmount} for ${b.categoryName || 'the job'}. Accept to confirm the order.`, 'bid'));
+};
+
+// Worker accepts the order at the current price.
+export const workerAcceptBooking = (bookingId) => {
+  const b = bookings.find(x => x.id === bookingId);
+  if (!b) return null;
+  const updated = {
+    ...b,
+    status: b.timingSlot?.type === 'scheduled' ? 'scheduled' : 'en_route',
+    acceptedAt: new Date().toISOString(),
+    customerAgreed: true
+  };
+  return replaceBooking(withNotice(updated, 'customer',
+    `${firstName(b.worker?.name, 'Your worker')} accepted your order for ${b.categoryName || 'your job'} at ₹${b.quoteAmount}.`, 'accepted'));
+};
+
+// All notifications for one side, newest first. Each carries its booking id.
+export const getNotifications = (to, filterBooking = () => true) =>
+  bookings
+    .filter(filterBooking)
+    .flatMap(b => (b.notifications || []).filter(n => n.to === to).map(n => ({ ...n, bookingId: b.id })))
+    .sort((a, b) => new Date(b.at) - new Date(a.at));
 
 export const verifyBookingOtp = (bookingId, otpEntered) => {
   const b = bookings.find(x => x.id === bookingId);

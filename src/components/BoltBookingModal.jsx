@@ -15,7 +15,7 @@ import {
   AlertCircle
 } from 'lucide-react';
 import { SERVICE_CATEGORIES, WORKERS_DATABASE, playAudioCue } from '../data/mockData';
-import { addBooking, cancelBooking } from '../services/db';
+import { addBooking, createBookingRequest, cancelBooking } from '../services/db';
 import { CancellationModal } from './CancellationModal';
 import { TRANSLATIONS } from '../data/translations';
 
@@ -159,7 +159,7 @@ export const BoltBookingModal = ({ isOpen, onClose, initialCategory, onBookingCo
     playAudioCue('match_success');
 
     // Save to Database!
-    const newDbBooking = addBooking({
+    const newDbBooking = createBookingRequest({
       category: category.id,
       categoryName: getCategoryName(category),
       title: `${getCategoryName(category)} - ${description.slice(0, 35)}...`,
@@ -180,8 +180,7 @@ export const BoltBookingModal = ({ isOpen, onClose, initialCategory, onBookingCo
       startOtp: '4829',
       etaMins: bid.etaMins,
       distanceKm: bid.distanceKm || 1.2,
-      status: timingType === 'immediate' ? 'en_route' : 'scheduled',
-      escrowLocked: true
+      escrowLocked: false
     });
 
     setSavedBooking(newDbBooking);
