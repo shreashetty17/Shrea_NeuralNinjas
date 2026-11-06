@@ -19,7 +19,8 @@ const STATUS = {
 const timeOf = (iso) => new Date(iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
 // Chat between customer and the booked worker, saved in Supabase (chat_messages).
-const BookingChat = ({ booking, customer, disabled }) => {
+export const BookingChat = ({ booking, customer, disabled, role = "customer" }) => {
+  const isWorker = role === "worker";
   const [messages, setMessages] = useState([]);
   const [pending, setPending] = useState([]);
   const [text, setText] = useState('');
@@ -64,7 +65,8 @@ const BookingChat = ({ booking, customer, disabled }) => {
     const body = text.trim();
     if (!body) return;
     setText('');
-    post('customer', body);
+    post(role, body);
+    if (isWorker) return; // the customer replies themselves
 
     // demo: the technician replies automatically
     setWorkerTyping(true);
@@ -85,19 +87,23 @@ const BookingChat = ({ booking, customer, disabled }) => {
   return (
     <div className="bg-white rounded-3xl border border-slate-200/90 shadow-bolt-sm flex flex-col h-[460px]">
       <div className="px-5 py-4 border-b border-slate-100 flex items-center gap-3">
-        <img src={booking.worker?.photo} alt="" className="w-10 h-10 rounded-full object-cover border-2 border-[#149B8B]/40" />
+        {isWorker ? (
+          <div className="w-10 h-10 rounded-full bg-[#0A2540] text-white flex items-center justify-center font-bold">{(booking.customerName || "C").charAt(0).toUpperCase()}</div>
+        ) : (
+          <img src={booking.worker?.photo} alt="" className="w-10 h-10 rounded-full object-cover border-2 border-[#149B8B]/40" />
+        )}
         <div>
-          <div className="font-bold text-sm text-slate-900">Chat with {workerFirst}</div>
+          <div className="font-bold text-sm text-slate-900">Chat with {isWorker ? (booking.customerName || "Customer").split(" ")[0] : workerFirst}</div>
           <div className="text-[11px] text-emerald-600 font-semibold">● Online</div>
         </div>
       </div>
 
       <div className="flex-1 overflow-y-auto px-4 py-4 space-y-2.5 bg-slate-50/60">
         {shown.length === 0 && (
-          <p className="text-center text-xs text-slate-400 pt-10">No messages yet. Say hello to {workerFirst}!</p>
+          <p className="text-center text-xs text-slate-400 pt-10">No messages yet. Say hello to {isWorker ? (booking.customerName || "the customer").split(" ")[0] : workerFirst}!</p>
         )}
         {shown.map((m) => {
-          const mine = m.sender === 'customer';
+          const mine = m.sender === role;
           if (m.sender === 'system') {
             return <p key={m.id} className="text-center text-[11px] text-slate-500">{m.text}</p>;
           }

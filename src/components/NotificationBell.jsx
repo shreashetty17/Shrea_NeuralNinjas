@@ -27,6 +27,21 @@ export const NotificationBell = ({ notifications = [], storageKey, onOpenItem })
 
   const unread = notifications.filter((n) => !seenAt || n.at > seenAt).length;
 
+  // Pop-up: show the newest unread notification once, as soon as it arrives
+  const [toast, setToast] = useState(null);
+  const latest = notifications[0];
+  useEffect(() => {
+    if (!latest || (seenAt && latest.at <= seenAt)) return;
+    const key = `${storageKey}_toasted`;
+    let shown = '';
+    try { shown = sessionStorage.getItem(key) || ''; } catch { /* ignore */ }
+    if (shown === latest.id) return;
+    try { sessionStorage.setItem(key, latest.id); } catch { /* ignore */ }
+    setToast(latest);
+    const timer = setTimeout(() => setToast(null), 8000);
+    return () => clearTimeout(timer);
+  }, [latest?.id]);
+
   // close when clicking outside
   useEffect(() => {
     if (!open) return;
@@ -48,8 +63,32 @@ export const NotificationBell = ({ notifications = [], storageKey, onOpenItem })
     }
   };
 
+  const toastIcon = toast ? (ICONS[toast.type] || ICONS.bid) : null;
+
   return (
     <div className="relative" ref={boxRef}>
+      {toast && (
+        <div className="fixed top-24 right-4 z-[60] w-[22rem] max-w-[calc(100vw-2rem)] bg-white rounded-2xl border-2 border-[#149B8B]/40 shadow-2xl p-4 flex items-start gap-3 animate-in fade-in">
+          <span className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${toastIcon.cls}`}>
+            <toastIcon.Icon className="w-4 h-4" />
+          </span>
+          <div className="flex-1 min-w-0">
+            <div className="text-[10px] uppercase tracking-wider font-black text-[#149B8B]">New notification</div>
+            <p className="text-xs font-bold text-slate-900 leading-snug mt-0.5">{toast.text}</p>
+            <div className="flex items-center gap-3 mt-2">
+              <button
+                onClick={() => { const n = toast; setToast(null); if (onOpenItem) onOpenItem(n); }}
+                className="px-3 py-1.5 rounded-lg bg-[#0A2540] text-white text-[11px] font-bold"
+              >
+                View
+              </button>
+              <button onClick={() => setToast(null)} className="text-[11px] font-bold text-slate-500 hover:text-slate-700">
+                Dismiss
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       <button
         onClick={toggle}
         title="Notifications"
