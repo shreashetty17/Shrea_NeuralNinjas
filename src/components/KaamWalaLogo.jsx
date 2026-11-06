@@ -1,7 +1,7 @@
 import React from 'react';
 import logoImg from '../assets/kaamsetu-logo.jpg';
 
-export const KaamSetuLogo = ({ size = 'md', isWhite = false, showTagline = true, variant = 'standard', onClick }) => {
+export const KaamSetuLogo = ({ size = 'md', isWhite = false, showTagline = false, variant = 'standard', onClick }) => {
   const isSmall = size === 'sm';
   const isLarge = size === 'lg';
 
@@ -63,3 +63,4 @@ export const KaamSetuLogo = ({ size = 'md', isWhite = false, showTagline = true,
 export const KaamWalaLogo = KaamSetuLogo;
 
 export default KaamSetuLogo;
+
