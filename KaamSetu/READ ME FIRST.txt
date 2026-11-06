@@ -1,0 +1,11 @@
+HOW TO OPEN
+
+Quickest: double-click "Open KaamSetu.html". It works on its own, even straight from inside the zip.
+
+Or:
+1. Right-click this zip and choose "Extract All".
+2. Open the KaamSetu folder.
+3. Double-click "Open KaamSetu.bat".
+
+The website opens in your browser. Sign-up and bookings save to Supabase.
+If sign-up says "check your email", turn OFF "Confirm email" in Supabase: Authentication > Sign In / Providers > Email.
