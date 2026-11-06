@@ -1,5 +1,5 @@
 import React from 'react';
-import logoImg from '../assets/kaamsetu-logo.jpg';
+import logoImg from '../assets/kaamsetu-logo-new.jpg';
 
 export const KaamSetuLogo = ({ size = 'md', isWhite = false, showTagline = true, variant = 'standard', onClick }) => {
   const isSmall = size === 'sm';
