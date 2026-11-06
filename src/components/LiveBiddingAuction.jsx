@@ -373,7 +373,7 @@ export const LiveBiddingAuction = ({
                     onClick={() => onAcceptQuote(bid)}
                     className="px-5 py-2.5 rounded-xl bg-charcoal-900 hover:bg-black text-white font-black text-xs shadow-warm-sm active:scale-95 transition-all flex items-center justify-center gap-2"
                   >
-                    <span>Accept & Hold in Escrow</span>
+                    <span>Accept Offer</span>
                     <ChevronRight className="w-4 h-4 text-brand-400" />
                   </button>
 
