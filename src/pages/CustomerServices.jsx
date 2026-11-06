@@ -17,8 +17,6 @@ import { TRANSLATIONS } from '../data/translations';
 
 export const CustomerServices = ({ onSelectCategory, lang = 'en' }) => {
   const [activeFilter, setActiveFilter] = useState('all');
-  // Specific service picked in each card's dropdown, e.g. { plumbing: 'Fix pipe leaks' }
-  const [selectedSub, setSelectedSub] = useState({});
   const t = TRANSLATIONS[lang] || TRANSLATIONS.en;
 
   const tradeIcons = {
@@ -114,25 +112,19 @@ export const CustomerServices = ({ onSelectCategory, lang = 'en' }) => {
                   </p>
                 </div>
 
-                {/* Specific service dropdown */}
+                {/* Common jobs covered (simple wording) */}
                 <div className="pt-2 border-t border-slate-100 space-y-2">
-                  <label
-                    htmlFor={`sub-${cat.id}`}
-                    className="text-[10px] font-black uppercase tracking-wider text-slate-400 block"
-                  >
+                  <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 block">
                     {t.commonRepairsCovered}
-                  </label>
-                  <select
-                    id={`sub-${cat.id}`}
-                    value={selectedSub[cat.id] || ''}
-                    onChange={(e) => setSelectedSub((prev) => ({ ...prev, [cat.id]: e.target.value }))}
-                    className="w-full px-3 py-2.5 rounded-xl border border-slate-300 bg-white text-sm text-slate-800 font-semibold focus:outline-none focus:ring-2 focus:ring-[#149B8B]/40 focus:border-[#149B8B]"
-                  >
-                    <option value="">{t.chooseServiceOption || 'Choose what you need…'}</option>
-                    {subServices.map((sub) => (
-                      <option key={sub} value={sub}>{sub}</option>
+                  </span>
+                  <ul className="space-y-1.5 text-xs text-slate-700">
+                    {subServices.map((sub, idx) => (
+                      <li key={idx} className="flex items-start gap-2">
+                        <CheckCircle2 className="w-3.5 h-3.5 text-primary-600 shrink-0 mt-0.5" />
+                        <span>{sub}</span>
+                      </li>
                     ))}
-                  </select>
+                  </ul>
                 </div>
               </div>
 
@@ -144,7 +136,7 @@ export const CustomerServices = ({ onSelectCategory, lang = 'en' }) => {
                 </div>
 
                 <button
-                  onClick={() => onSelectCategory({ ...cat, selectedSubService: selectedSub[cat.id] || '' })}
+                  onClick={() => onSelectCategory(cat)}
                   className="btn-primary text-xs px-4 py-2.5 shadow-sm"
                 >
                   <span>{t.btnRequestBids}</span>
@@ -155,29 +147,6 @@ export const CustomerServices = ({ onSelectCategory, lang = 'en' }) => {
             </div>
           );
         })}
-      </div>
-
-      {/* Fair Price Algorithmic Explainer */}
-      <div className="p-8 rounded-3xl bg-slate-100/80 border border-slate-200 flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
-        <div className="space-y-1 max-w-xl">
-          <div className="flex items-center gap-2 text-primary-700 text-xs font-bold uppercase tracking-wider">
-            <HelpCircle className="w-4 h-4" />
-            <span>{t.fairPriceGuideTag}</span>
-          </div>
-          <h4 className="text-base font-display font-bold text-slate-900">
-            {t.fairPriceGuideTitle}
-          </h4>
-          <p className="text-xs text-slate-600 leading-relaxed">
-            {t.fairPriceGuideDesc}
-          </p>
-        </div>
-
-        <button
-          onClick={() => onSelectCategory(SERVICE_CATEGORIES[0])}
-          className="btn-primary text-xs px-5 py-3 shadow-sm shrink-0"
-        >
-          {t.postJobBudgetBtn}
-        </button>
       </div>
 
     </div>

@@ -47,11 +47,27 @@ export const BoltBookingModal = ({ isOpen, onClose, initialCategory, onBookingCo
   const [cancellingBooking, setCancellingBooking] = useState(null);
   const [etaCountdown, setEtaCountdown] = useState(8);
 
+  // Specific job within the chosen category (e.g. Plumbing → "Fix pipe leaks")
+  const [subService, setSubService] = useState('');
+  const subServiceOptions = (t.subServices && t.subServices[category?.id]) || [];
+
   useEffect(() => {
     if (initialCategory) setCategory(initialCategory);
-    // Pre-fill the job with the specific service picked on the Services page
-    if (initialCategory?.selectedSubService) setDescription(initialCategory.selectedSubService);
+    setSubService('');
   }, [initialCategory]);
+
+  const handleCategoryChange = (id) => {
+    setCategory(SERVICE_CATEGORIES.find((c) => c.id === id) || category);
+    // a job from the old category no longer applies
+    if (subService && description === subService) setDescription('');
+    setSubService('');
+  };
+
+  const handleSubServiceChange = (value) => {
+    // fill the problem description with the chosen job unless the user wrote their own
+    if (!description.trim() || description === subService) setDescription(value);
+    setSubService(value);
+  };
 
   const getCategoryName = (cat) => {
     if (lang === 'hi') return cat.nameHi || cat.name;
@@ -226,7 +242,7 @@ export const BoltBookingModal = ({ isOpen, onClose, initialCategory, onBookingCo
                 </label>
                 <select
                   value={category.id}
-                  onChange={(e) => setCategory(SERVICE_CATEGORIES.find((c) => c.id === e.target.value) || category)}
+                  onChange={(e) => handleCategoryChange(e.target.value)}
                   className="w-full px-4 py-2.5 rounded-xl bg-slate-50 border border-slate-300 text-slate-900 font-bold text-xs focus:ring-2 focus:ring-primary-500 focus:bg-white"
                 >
                   {SERVICE_CATEGORIES.map((c) => (
@@ -235,6 +251,21 @@ export const BoltBookingModal = ({ isOpen, onClose, initialCategory, onBookingCo
                     </option>
                   ))}
                 </select>
+
+                {/* Specific job for the chosen category */}
+                {subServiceOptions.length > 0 && (
+                  <select
+                    value={subService}
+                    onChange={(e) => handleSubServiceChange(e.target.value)}
+                    aria-label={t.commonRepairsCovered || 'Choose a service'}
+                    className="mt-2 w-full px-4 py-2.5 rounded-xl bg-white border border-[#149B8B]/60 text-slate-900 font-semibold text-xs focus:ring-2 focus:ring-[#149B8B]/40"
+                  >
+                    <option value="">{t.chooseServiceOption || 'Choose what you need…'}</option>
+                    {subServiceOptions.map((s) => (
+                      <option key={s} value={s}>{s}</option>
+                    ))}
+                  </select>
+                )}
               </div>
 
               {/* TIMING SELECTION: Immediate vs Scheduled Slot */}
