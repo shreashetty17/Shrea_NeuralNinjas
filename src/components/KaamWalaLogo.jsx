@@ -1,11 +1,12 @@
 import React from 'react';
-import logoImg from '../assets/kaamsetu-logo.png';
+import logoImg from '../assets/kaamsetu-emblem.png';
 
 export const KaamSetuLogo = ({ size = 'md', isWhite = false, showTagline = false, variant = 'standard', onClick }) => {
   const isSmall = size === 'sm';
   const isLarge = size === 'lg';
 
-  const iconSize = isSmall ? 'w-12 h-12' : isLarge ? 'w-20 h-20 sm:w-24 sm:h-24' : 'w-14 h-14';
+  // Box matches the emblem's shape (572 x 447) so it is never squashed or letterboxed
+  const iconSize = isSmall ? 'h-12' : isLarge ? 'h-20 sm:h-24' : 'h-14';
   const textSize = isSmall ? 'text-2xl' : isLarge ? 'text-4xl sm:text-5xl' : 'text-3xl';
 
   // Standalone full badge variant (used e.g. in auth / hero showcase)
@@ -19,7 +20,7 @@ export const KaamSetuLogo = ({ size = 'md', isWhite = false, showTagline = false
           <img 
             src={logoImg} 
             alt="KaamSetu - Local Help. Real People. Fair Prices." 
-            className="w-48 h-48 sm:w-56 sm:h-56 object-contain rounded-xl"
+            className="w-56 sm:w-64 aspect-[572/447] object-cover rounded-xl"
           />
         </div>
       </div>
@@ -32,11 +33,11 @@ export const KaamSetuLogo = ({ size = 'md', isWhite = false, showTagline = false
       className={`inline-flex items-center gap-3 select-none ${onClick ? 'cursor-pointer group' : ''}`}
     >
       {/* Uploaded Official Logo Emblem */}
-      <div className={`relative ${iconSize} rounded-xl overflow-hidden bg-[#faf8f5] shadow-xs border border-slate-200/90 p-0.5 flex items-center justify-center transition-all ${onClick ? 'group-hover:scale-105 group-hover:shadow-md' : ''}`}>
+      <div className={`relative ${iconSize} aspect-[572/447] rounded-xl overflow-hidden bg-[#f6f5f0] shadow-xs border border-slate-200/90 flex items-center justify-center transition-all ${onClick ? 'group-hover:scale-105 group-hover:shadow-md' : ''}`}>
         <img 
           src={logoImg} 
           alt="KaamSetu Emblem" 
-          className="w-full h-full object-contain rounded-lg"
+          className="w-full h-full object-cover"
         />
       </div>
 
