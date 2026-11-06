@@ -44,7 +44,7 @@ export const CustomerMyBookings = ({
   const handleReleaseEscrow = (bookingId, workerName, amount) => {
     updateBookingStatus(bookingId, 'completed');
     if (onUpdateBookings) onUpdateBookings();
-    alert(`Success! Escrow payment of ₹${amount} released to ${workerName}. Thank you for using KaamSetu.`);
+    alert(`Job marked as completed. Please pay ₹${amount} to ${workerName}. Thank you for using KaamSetu!`);
   };
 
   const handleConfirmCancel = (bk, fee, reason) => {

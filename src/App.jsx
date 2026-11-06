@@ -92,10 +92,11 @@ export function App() {
     setActiveBooking(newBooking);
     setChatBooking(newBooking);
     setIsBookingModalOpen(false);
-    // Direct chat automatically pops up when the service is booked!
-    setIsChatOpen(true);
-    // Navigate straight to My Bookings to track it!
-    setActivePage('my-bookings');
+    // Open the booking page: live map of the worker, chat and cancellation
+    setIsChatOpen(false);
+
+    setActivePage('tracker');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const t = TRANSLATIONS[lang] || TRANSLATIONS.en;

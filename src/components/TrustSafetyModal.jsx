@@ -75,14 +75,14 @@ export const TrustSafetyModal = ({
               <h3 className="text-xl font-black">
                 {mode === 'sos' && (t.safetyModalSosTitle || 'Emergency Safety SOS System')}
                 {mode === 'verify_flow' && (t.safetyModalVerifyTitle || '2-Tier Worker Verification Engine')}
-                {mode === 'escrow_details' && (t.safetyModalEscrowTitle || 'KaamSetu Escrow-Lite Protection')}
+                {mode === 'escrow_details' && (t.safetyModalEscrowTitle || 'KaamSetu Fair Payment')}
                 {mode === 'dispute' && (t.safetyModalDisputeTitle || 'Dispute Resolution with Photo Proof')}
                 {mode === 'two_way_rating' && (t.safetyModalRatingTitle || 'Two-Way Protective Rating System')}
               </h3>
               <p className="text-xs text-white/80">
                 {mode === 'sos' && (t.safetyModalSosSubtitle || 'Real-time alert dispatch to Mumbai Police & Emergency Contact')}
                 {mode === 'verify_flow' && (t.safetyModalVerifySubtitle || 'Aadhaar e-KYC and Police Criminal Clearance verified')}
-                {mode === 'escrow_details' && (t.safetyModalEscrowSubtitle || 'Funds safely held in escrow until customer inspects and signs off')}
+                {mode === 'escrow_details' && (t.safetyModalEscrowSubtitle || 'Pay only after you check and approve the work')}
                 {mode === 'dispute' && (t.safetyModalDisputeSubtitle || 'Mediation before/after evidence guarantee')}
                 {mode === 'two_way_rating' && (t.safetyModalRatingSubtitle || 'Both customer and worker rate each other to ensure mutual respect')}
               </p>
@@ -232,7 +232,7 @@ export const TrustSafetyModal = ({
               <div className="p-4 bg-orange-50 rounded-2xl border border-orange-200 text-xs text-orange-950 space-y-2">
                 <div className="font-extrabold text-sm text-orange-800 flex items-center gap-1.5">
                   <Lock className="w-4 h-4 text-orange-600" />
-                  <span>{t.safetyModalEscrowTitle || 'How KaamSetu Escrow-Lite Works'}</span>
+                  <span>{t.safetyModalEscrowTitle || 'How KaamSetu Payment Works'}</span>
                 </div>
                 <p>
                   {t.safetyEscrowHowItWorks}
@@ -272,7 +272,7 @@ export const TrustSafetyModal = ({
               {!disputeResolved ? (
                 <>
                   <div className="p-3.5 bg-amber-50 rounded-2xl border border-amber-200 text-xs text-amber-900">
-                    <span className="font-bold block mb-1">{t.safetyDisputeOnHold || 'Escrow Funds On Hold'}</span>
+                    <span className="font-bold block mb-1">{t.safetyDisputeOnHold || 'Payment On Hold'}</span>
                     {t.safetyDisputeUploadHint || 'Upload before/after photos. Our KaamSetu mediator resolves within 15 minutes.'}
                   </div>
 
@@ -317,7 +317,7 @@ export const TrustSafetyModal = ({
                     {t.safetyDisputeInitiated || 'Dispute Ticket Initiated'}
                   </h4>
                   <p className="text-xs text-slate-600 max-w-sm mx-auto">
-                    {t.safetyDisputeInitiatedDesc || 'Escrow funds are safely frozen. A certified Mumbai tradesman supervisor has been assigned to review photo evidence. 100% money-back guarantee if unfixable.'}
+                    {t.safetyDisputeInitiatedDesc || 'Payment is on hold. A certified Mumbai tradesman supervisor has been assigned to review photo evidence. 100% money-back guarantee if unfixable.'}
                   </p>
                   <button
                     onClick={onClose}
@@ -390,7 +390,7 @@ export const TrustSafetyModal = ({
                 <div className="text-center space-y-3 py-4 animate-in fade-in">
                   <CheckCircle className="w-12 h-12 text-emerald-600 mx-auto" />
                   <h4 className="font-black text-slate-900 text-base">
-                    {t.safetyReviewsRecorded || 'Reviews Recorded & Escrow Released!'}
+                    {t.safetyReviewsRecorded || 'Reviews Recorded & Payment Released!'}
                   </h4>
                   <p className="text-xs text-slate-600">
                     {t.safetyReviewsRecordedDesc || 'Both profiles updated with verified badges. Dignity of labor upheld!'}

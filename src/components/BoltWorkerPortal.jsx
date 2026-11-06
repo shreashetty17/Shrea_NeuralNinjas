@@ -263,7 +263,7 @@ export const BoltWorkerPortal = ({ onSwitchUser, lang = 'en', currentUser = null
     updateBookingStatus(orderId, 'completed');
     playAudioCue('match_success');
     refreshOrders();
-    alert(`Work completed! Escrow payout of ₹${amount} successfully released to your wallet.`);
+    alert(`Work completed! Payment of ₹${amount} added to your wallet.`);
   };
 
   // Filter orders
@@ -697,7 +697,7 @@ export const BoltWorkerPortal = ({ onSwitchUser, lang = 'en', currentUser = null
                             <span className="font-bold text-slate-900">{ord.timingSlot?.date || 'Today'} • {ord.timingSlot?.timeSlot || ord.urgency}</span>
                           </div>
                           <div className="flex items-center justify-between">
-                            <span className="text-slate-500 font-medium">{t.workerJobEscrowVal || 'Job Value in Escrow'}:</span>
+                            <span className="text-slate-500 font-medium">{t.workerJobEscrowVal || 'Job Value'}:</span>
                             <span className="font-mono font-black text-slate-900 text-sm">₹{ord.quoteAmount}</span>
                           </div>
                           <div className="flex items-center justify-between">
@@ -828,7 +828,7 @@ export const BoltWorkerPortal = ({ onSwitchUser, lang = 'en', currentUser = null
                           </div>
 
                           <p className="text-xs text-slate-600">
-                            The repair is officially recorded as in progress. When you finish the physical repair, tap the button below to request inspection and release the ₹{ord.quoteAmount} held safely in escrow.
+                            The repair is officially recorded as in progress. When you finish the physical repair, tap the button below to ask the customer to check the work and pay ₹{ord.quoteAmount}.
                           </p>
 
                           <button
@@ -836,7 +836,7 @@ export const BoltWorkerPortal = ({ onSwitchUser, lang = 'en', currentUser = null
                             className="w-full sm:w-auto px-6 py-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-md shadow-emerald-600/20 active:scale-95 transition-all flex items-center justify-center gap-2"
                           >
                             <CheckCircle2 className="w-4 h-4" />
-                            <span>{t.workerMarkCompleted || 'Mark Job Completed & Release Escrow'}</span>
+                            <span>{t.workerMarkCompleted || 'Mark Job Completed'}</span>
                           </button>
                         </div>
                       )}
@@ -849,7 +849,7 @@ export const BoltWorkerPortal = ({ onSwitchUser, lang = 'en', currentUser = null
                           <div className="flex items-center gap-2">
                             <CheckCircle2 className="w-4 h-4 text-emerald-600" />
                             <span className="font-semibold text-slate-800">
-                              {t.workerWorkCompletedPaid || 'Job Completed Successfully. Full escrow payout released.'}
+                              {t.workerWorkCompletedPaid || 'Job Completed Successfully. Full payment received.'}
                             </span>
                           </div>
                           <span className="text-[11px] text-slate-400">
@@ -1144,7 +1144,7 @@ export const BoltWorkerPortal = ({ onSwitchUser, lang = 'en', currentUser = null
                 name: activeOrder?.customerName || 'Customer',
                 address: activeOrder?.address || 'Sea Green Apts, Pali Hill, Bandra West',
                 phone: activeOrder?.customerPhone || '',
-                issue: `${activeOrder?.title || 'Kitchen Diverter Cartridge'} (₹${activeOrder?.quoteAmount || 350} in Escrow)`
+                issue: `${activeOrder?.title || 'Kitchen Diverter Cartridge'} (₹${activeOrder?.quoteAmount || 350} agreed)`
               }}
               onOpenMap={() => setWorkerTab('active_job')}
             />

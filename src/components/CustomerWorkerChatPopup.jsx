@@ -56,7 +56,7 @@ export const CustomerWorkerChatPopup = ({
         {
           id: 1,
           sender: 'system',
-          text: `🔒 "${title}" के लिए सीधी चैट सक्रिय। ₹${amount} का एस्क्रो पेमेंट कामवाला के पास सुरक्षित है। कारीगर के दरवाजे पर पहुँचने पर ही शुरुआती OTP ${otp} बताएं।`,
+          text: `🔒 "${title}" के लिए सीधी चैट सक्रिय। तय कीमत ₹${amount} है। कारीगर के दरवाजे पर पहुँचने पर ही शुरुआती OTP ${otp} बताएं।`,
           time: 'अभी'
         },
         {
@@ -83,7 +83,7 @@ export const CustomerWorkerChatPopup = ({
         {
           id: 1,
           sender: 'system',
-          text: `🔒 "${title}" साठी थेट संभाषण सुरू झाले. ₹${amount} एस्क्रो रक्कम कामवालाकडे सुरक्षित आहे. कारागीर घरी आल्यावरच सुरुवातीचा OTP ${otp} सांगा.`,
+          text: `🔒 "${title}" साठी थेट संभाषण सुरू झाले. ठरलेली किंमत ₹${amount} आहे. कारागीर घरी आल्यावरच सुरुवातीचा OTP ${otp} सांगा.`,
           time: 'आत्ताच'
         },
         {
@@ -110,7 +110,7 @@ export const CustomerWorkerChatPopup = ({
         {
           id: 1,
           sender: 'system',
-          text: `🔒 Direct Chat Activated for "${title}". Escrow payment of ₹${amount} is held safely by KaamSetu. Disclose Start OTP ${otp} only when the technician arrives at your door.`,
+          text: `🔒 Direct Chat Activated for "${title}". Agreed price: ₹${amount}. Disclose Start OTP ${otp} only when the technician arrives at your door.`,
           time: 'Just now'
         },
         {

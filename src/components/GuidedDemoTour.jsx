@@ -40,9 +40,9 @@ export const GuidedDemoTour = ({
     },
     {
       timeRange: '0:45 - 1:15',
-      title: '3. Negotiation, Escrow-Lite & Live Map',
+      title: '3. Negotiation & Live Map',
       subtitle: 'Customer counters quote, accepts, and tracks 18-minute live arrival',
-      narration: 'The customer compares rating, distance, and ETA, counters one quote to ₹320, and accepts! Funds are held safely in Escrow-Lite, and the live map shows Rameshwar arriving in 12 minutes.',
+      narration: 'The customer compares rating, distance, and ETA, counters one quote to ₹320, and accepts! The price is fixed, and the live map shows Rameshwar arriving in 12 minutes.',
       targetTab: 'customer',
       badge: 'The 30-Min Promise'
     },

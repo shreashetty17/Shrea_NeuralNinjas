@@ -935,11 +935,11 @@ export const COMPETITOR_COMPARISON = [
   },
   {
     feature: 'Trust & Worker Protection',
-    kaamSetu: '4-Tier Badges (Aadhaar, Police, NSDC) + 2-Way Ratings + Escrow-Lite',
+    kaamSetu: '4-Tier Badges (Aadhaar, Police, NSDC) + 2-Way Ratings + Pay-after-job',
     urbanCompany: 'Customer-skewed ratings; instant worker deactivation',
     quickApps: 'Basic phone/ID verification',
     justdial: 'Zero verification or guarantees',
-    apnaWorkIndia: 'No active job-level escrow or safety SOS'
+    apnaWorkIndia: 'No pay-after-job protection or safety SOS'
   },
   {
     feature: 'Fair-Price Algorithmic Guide',

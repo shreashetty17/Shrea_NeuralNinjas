@@ -25,7 +25,7 @@ export const CustomerWorkerChat = ({
     name: 'Priya Sharma',
     address: 'Flat 402, Sea Green Apts, Pali Hill, Bandra West',
     phone: '+91 98200 44102',
-    issue: 'Kitchen Faucet Cartridge Leakage (₹350 in Escrow)'
+    issue: 'Kitchen Faucet Cartridge Leakage (₹350 agreed)'
   },
   onOpenMap,
   onBookWorker,
@@ -46,7 +46,7 @@ export const CustomerWorkerChat = ({
             {t.chatLockedTitle || 'Chat Locked: Book a Worker First'}
           </h3>
           <p className="text-xs sm:text-sm text-slate-500 max-w-md mx-auto leading-relaxed">
-            {t.chatLockedDesc || 'Direct two-way messaging unlocks automatically once you accept a worker bid or book a scheduled slot. This protects your privacy and guarantees verified Escrow security.'}
+            {t.chatLockedDesc || 'Direct two-way messaging unlocks automatically once you accept a worker bid or book a scheduled slot. This protects your privacy.'}
           </p>
         </div>
         <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-2">
@@ -66,7 +66,7 @@ export const CustomerWorkerChat = ({
     {
       id: 1,
       sender: 'system',
-      text: '🔒 सीधी चैट सक्रिय। ₹350 एस्क्रो राशि कामवाला के पास सुरक्षित है। जब कारीगर पहुँचे तभी 4-अंकों का OTP 4829 बताएं।',
+      text: '🔒 सीधी चैट सक्रिय। तय कीमत ₹350 है। जब कारीगर पहुँचे तभी 4-अंकों का OTP 4829 बताएं।',
       time: '18:30'
     },
     {
@@ -91,7 +91,7 @@ export const CustomerWorkerChat = ({
     {
       id: 1,
       sender: 'system',
-      text: '🔒 थेट चॅट सुरू झाले. ₹350 रक्कम कामवाला एस्क्रोमध्ये सुरक्षित आहे. कारागीर आल्यावरच 4-अंकी OTP 4829 सांगा.',
+      text: '🔒 थेट चॅट सुरू झाले. ठरलेली किंमत ₹350 आहे. कारागीर आल्यावरच 4-अंकी OTP 4829 सांगा.',
       time: '18:30'
     },
     {
@@ -116,7 +116,7 @@ export const CustomerWorkerChat = ({
     {
       id: 1,
       sender: 'system',
-      text: '🔒 Direct Chat Activated. Job Escrow of ₹350 is held safely by KaamSetu. Disclose OTP 4829 only when the technician arrives.',
+      text: '🔒 Direct Chat Activated. Agreed price: ₹350. Disclose OTP 4829 only when the technician arrives.',
       time: '18:30'
     },
     {
@@ -329,7 +329,7 @@ export const CustomerWorkerChat = ({
       <div className="px-5 py-2 bg-emerald-50/70 border-b border-emerald-100 flex items-center justify-between text-xs text-emerald-900 font-semibold">
         <div className="flex items-center gap-1.5">
           <ShieldCheck className="w-4 h-4 text-emerald-600" />
-          <span>{t.lockedInEscrowLabel ? t.lockedInEscrowLabel.replace('{amount}', '350') : '₹350 held safely in Escrow'}</span>
+          <span>{t.lockedInEscrowLabel ? t.lockedInEscrowLabel.replace('{amount}', '350') : 'Agreed price: ₹350'}</span>
         </div>
         <div className="flex items-center gap-1 font-mono font-bold text-slate-900 bg-white px-2 py-0.5 rounded border border-emerald-200">
           <span className="text-[10px] text-slate-500">{t.chatOtpPrefix || 'OTP:'}</span>

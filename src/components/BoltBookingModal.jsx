@@ -185,6 +185,13 @@ export const BoltBookingModal = ({ isOpen, onClose, initialCategory, onBookingCo
     });
 
     setSavedBooking(newDbBooking);
+
+    // Go straight to this booking's page (live map of the worker, chat, cancellation)
+    setBids([]);
+    setAcceptedBooking(null);
+    setSavedBooking(null);
+    setStep(1);
+    if (onBookingConfirmed) onBookingConfirmed(newDbBooking);
   };
 
   if (!isOpen) return null;
