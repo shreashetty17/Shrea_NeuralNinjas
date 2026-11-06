@@ -332,9 +332,6 @@ export function App() {
           <KaamWalaLogo size="sm" onClick={() => setActivePage('home')} />
 
           <div className="flex flex-wrap items-center justify-center gap-6 font-bold text-slate-600">
-            <button onClick={() => setActivePage('services')} className="hover:text-primary-600 transition-colors">
-              {t.navServices}
-            </button>
             <button onClick={() => setActivePage('how-it-works')} className="hover:text-primary-600 transition-colors">
               {t.navHowItWorks}
             </button>
@@ -343,9 +340,6 @@ export function App() {
             </button>
             <button onClick={() => setActivePage('workers')} className="hover:text-primary-600 transition-colors">
               {t.navWorkers}
-            </button>
-            <button onClick={() => setActivePage('my-bookings')} className="hover:text-primary-600 transition-colors font-extrabold text-secondary-600">
-              {t.navMyBookings}
             </button>
             <button onClick={() => { setActivePage("help"); window.scrollTo({ top: 0, behavior: "smooth" }); }} className="hover:text-primary-600 transition-colors">
               Help
