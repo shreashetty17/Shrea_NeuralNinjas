@@ -337,7 +337,7 @@ export const BoltWorkerPortal = ({ onSwitchUser, lang = 'en', currentUser = null
                 }`}
               >
                 <Package className="w-3.5 h-3.5 text-secondary-600" />
-                <span>{t.workerTabOrders || 'My Orders'}</span>
+                <span>{t.workerTabOrders || 'Active Orders'}</span>
                 {pendingOtpOrders.length > 0 ? (
                   <span className="px-1.5 py-0.2 bg-rose-600 text-white rounded-full text-[9px] font-bold animate-pulse">
                     {pendingOtpOrders.length}
@@ -358,7 +358,7 @@ export const BoltWorkerPortal = ({ onSwitchUser, lang = 'en', currentUser = null
                 }`}
               >
                 <Navigation className="w-3.5 h-3.5 text-primary-600" />
-                <span>{t.workerTabActiveJob || 'Active Job & Map'}</span>
+                <span>{t.workerTabActiveJob || 'My Orders'}</span>
               </button>
 
               <button
@@ -448,8 +448,8 @@ export const BoltWorkerPortal = ({ onSwitchUser, lang = 'en', currentUser = null
           {/* Mobile Tab Strip */}
           <div className="lg:hidden flex items-center gap-1 overflow-x-auto py-2 border-t border-slate-100 no-scrollbar text-xs font-bold text-slate-600">
             {[
-              { id: 'orders', label: `${t.workerTabOrders || 'My Orders'} (${pendingOtpOrders.length > 0 ? `${pendingOtpOrders.length} OTP` : orders.length})` },
-              { id: 'active_job', label: t.workerTabActiveJob || 'Active Job' },
+              { id: 'orders', label: `${t.workerTabOrders || 'Active Orders'} (${pendingOtpOrders.length > 0 ? `${pendingOtpOrders.length} OTP` : orders.length})` },
+              { id: 'active_job', label: t.workerTabActiveJob || 'My Orders' },
               { id: 'earnings', label: `${t.workerTabEarnings || 'Earnings'} (${isBalanceRevealed ? `₹${currentWalletBalance.toLocaleString()}` : '₹*****'})` }
             ].map((tab) => (
               <button

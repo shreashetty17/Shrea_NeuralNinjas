@@ -355,8 +355,8 @@ export const TRANSLATIONS = {
     // Worker Portal
     workerProTitle: 'Worker Pro',
     workerTabFeed: 'Job Feed',
-    workerTabOrders: 'My Orders',
-    workerTabActiveJob: 'Active Job & Map',
+    workerTabOrders: 'Active Orders',
+    workerTabActiveJob: 'My Orders',
     workerTabChat: 'Customer Chat',
     workerTabEarnings: 'Earnings',
     workerTabBadges: 'My Badges',
@@ -855,8 +855,8 @@ export const TRANSLATIONS = {
     // Worker Portal
     workerProTitle: 'कारीगर प्रो',
     workerTabFeed: 'काम फ़ीड',
-    workerTabOrders: 'मेरे ऑर्डर्स',
-    workerTabActiveJob: 'सक्रिय काम व मैप',
+    workerTabOrders: 'सक्रिय ऑर्डर्स',
+    workerTabActiveJob: 'मेरे ऑर्डर्स',
     workerTabChat: 'ग्राहक चैट',
     workerTabEarnings: 'कमाई',
     workerTabBadges: 'मेरे बैज',
@@ -1355,8 +1355,8 @@ export const TRANSLATIONS = {
     // Worker Portal
     workerProTitle: 'कारागीर प्रो',
     workerTabFeed: 'कामाचे फीड',
-    workerTabOrders: 'माझे ऑर्डर्स',
-    workerTabActiveJob: 'सक्रिय काम व नकाशा',
+    workerTabOrders: 'सक्रिय ऑर्डर्स',
+    workerTabActiveJob: 'माझे ऑर्डर्स',
     workerTabChat: 'ग्राहक चॅट',
     workerTabEarnings: 'कमाई',
     workerTabBadges: 'माझे बॅज',
