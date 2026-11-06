@@ -4,6 +4,7 @@ import { CleanNavbar } from './components/CleanNavbar';
 import { CustomerHome } from './pages/CustomerHome';
 import { CustomerProfile } from './pages/CustomerProfile';
 import { CustomerMyRequests } from "./pages/CustomerMyRequests";
+import { CustomerHelp } from "./pages/CustomerHelp";
 import { CustomerServices } from './pages/CustomerServices';
 import { CustomerHowItWorks } from './pages/CustomerHowItWorks';
 import { CustomerSafety } from './pages/CustomerSafety';
@@ -216,6 +217,10 @@ export function App() {
         )}
 
         {/* PAGE 6: MY BOOKINGS (MULTIPLE BOOKINGS TRACKER) */}
+        {activePage === "help" && (
+          <CustomerHelp onOpenSos={() => setSosModalOpen(true)} />
+        )}
+
         {activePage === "my-requests" && (
           <CustomerMyRequests
             requests={myRequests}
@@ -358,6 +363,9 @@ export function App() {
             </button>
             <button onClick={() => setActivePage('my-bookings')} className="hover:text-primary-600 transition-colors font-extrabold text-secondary-600">
               {t.navMyBookings}
+            </button>
+            <button onClick={() => { setActivePage("help"); window.scrollTo({ top: 0, behavior: "smooth" }); }} className="hover:text-primary-600 transition-colors">
+              Help
             </button>
             <button onClick={() => setIsComparisonOpen(true)} className="text-primary-600 hover:underline">
               Slide 5 Matrix
