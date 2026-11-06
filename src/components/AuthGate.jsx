@@ -15,7 +15,8 @@ import {
 } from 'lucide-react';
 import { KaamSetuLogo } from './KaamSetuLogo';
 import { playAudioCue } from '../data/mockData';
-import { saveUser, authenticateUser } from '../services/db';
+import { saveUser, authenticateUser, findUserByAuthId } from '../services/db';
+import { parseLoginId, signUpWithPassword, signInWithPassword } from '../services/supabase';
 import { TRANSLATIONS } from '../data/translations';
 
 export const AuthGate = ({ onLoginSuccess, initialLang = 'en', onLanguageChange }) => {
@@ -34,6 +35,7 @@ export const AuthGate = ({ onLoginSuccess, initialLang = 'en', onLanguageChange 
   const [uploadedGovtId, setUploadedGovtId] = useState(null);
   const [uploadedPoliceClearance, setUploadedPoliceClearance] = useState(null);
   const [uploadError, setUploadError] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleLanguageSelect = (newLang) => {
     setLang(newLang);
@@ -66,8 +68,25 @@ export const AuthGate = ({ onLoginSuccess, initialLang = 'en', onLanguageChange 
     }
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
+    if (isSubmitting) return;
+    setUploadError('');
+
+    const login = parseLoginId(phoneOrEmail);
+    if (!phoneOrEmail.trim()) {
+      setUploadError(t.authErrorPhoneEmail || 'Please enter your phone number or email.');
+      return;
+    }
+    if (login.error) {
+      setUploadError(login.error);
+      return;
+    }
+    const password = passwordOrOtp;
+    if (!password.trim()) {
+      setUploadError(t.authErrorPassword || 'Please enter a password.');
+      return;
+    }
 
     // STRICT VALIDATION FOR SIGN UP:
     if (authMode === 'signup') {
@@ -75,12 +94,8 @@ export const AuthGate = ({ onLoginSuccess, initialLang = 'en', onLanguageChange 
         setUploadError(t.authErrorFullName || 'Please enter your full name.');
         return;
       }
-      if (!phoneOrEmail.trim()) {
-        setUploadError(t.authErrorPhoneEmail || 'Please enter your phone number or email.');
-        return;
-      }
-      if (!passwordOrOtp.trim()) {
-        setUploadError(t.authErrorPassword || 'Please enter a password.');
+      if (password.length < 6) {
+        setUploadError('Password must be at least 6 characters.');
         return;
       }
 
@@ -98,23 +113,68 @@ export const AuthGate = ({ onLoginSuccess, initialLang = 'en', onLanguageChange 
       }
     }
 
-    // Save user in Database!
-    const savedUser = saveUser({
-      role,
-      name: fullName.trim() || (role === 'customer' ? 'Priya Sharma' : 'Rajesh Kumar'),
-      phone: phoneOrEmail.trim() || '+91 98200 44102',
-      locality: locality.trim() || 'Bandra West, Mumbai',
-      trade: role === 'worker' ? trade : null,
-      govtIdDocument: uploadedGovtId ? uploadedGovtId.name : (role === 'worker' ? 'Aadhaar_Govt_ID_Rajesh.pdf' : null),
-      policeClearanceDocument: uploadedPoliceClearance ? uploadedPoliceClearance.name : (role === 'worker' ? 'Mumbai_Police_Clearance_Rajesh.pdf' : null),
-      isGovtIdVerified: true,
-      isPoliceClearanceVerified: true,
-      isVerified: true,
-      password: passwordOrOtp.trim() || '1234'
-    });
+    setIsSubmitting(true);
+    try {
+      let profile;
 
-    playAudioCue('match_success');
-    onLoginSuccess(savedUser);
+      if (authMode === 'signup') {
+        // 1. Create the account in Supabase Auth (password is hashed and stored by Supabase).
+        const meta = {
+          role,
+          name: fullName.trim(),
+          phone: login.phone || null,
+          email: login.kind === 'email' ? login.email : null,
+          locality: locality.trim() || 'Bandra West, Mumbai',
+          trade: role === 'worker' ? trade : null
+        };
+        const { session, user } = await signUpWithPassword(login.loginEmail, password, meta);
+        if (!session) {
+          setUploadError(login.kind === 'email'
+            ? 'Account created. Please open the confirmation email we sent you, then sign in.'
+            : 'Account created but not active yet. (Admin: turn off "Confirm email" in Supabase → Authentication → Sign In / Providers → Email.)');
+          setAuthMode('signin');
+          return;
+        }
+
+        // 2. Save the profile (no password) in app_users, linked to the account.
+        profile = saveUser({
+          ...meta,
+          authUserId: user.id,
+          phone: meta.phone || undefined,
+          email: meta.email || undefined,
+          govtIdDocument: uploadedGovtId ? uploadedGovtId.name : null,
+          policeClearanceDocument: uploadedPoliceClearance ? uploadedPoliceClearance.name : null,
+          isGovtIdVerified: role === 'worker' && !!uploadedGovtId,
+          isPoliceClearanceVerified: role === 'worker' && !!uploadedPoliceClearance,
+          isVerified: true
+        });
+      } else {
+        // Sign in: Supabase checks the password, then we load the linked profile.
+        const { user } = await signInWithPassword(login.loginEmail, password);
+        const meta = user.user_metadata || {};
+        const stored = await findUserByAuthId(user.id);
+        profile = stored || {
+          role: meta.role || role,
+          name: meta.name || (login.email || login.phone),
+          phone: meta.phone || login.phone || undefined,
+          email: meta.email || login.email || undefined,
+          locality: meta.locality || 'Mumbai',
+          trade: meta.trade || null,
+          isVerified: true
+        };
+        profile = saveUser({ ...profile, authUserId: user.id });
+        if (profile.role && profile.role !== role) {
+          setRole(profile.role);
+        }
+      }
+
+      playAudioCue('match_success');
+      onLoginSuccess(profile);
+    } catch (err) {
+      setUploadError(err.message || 'Something went wrong. Please try again.');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const handleQuickDemoCustomer = () => {
@@ -462,9 +522,10 @@ export const AuthGate = ({ onLoginSuccess, initialLang = 'en', onLanguageChange 
             {/* Submit Button */}
             <button
               type="submit"
-              className="w-full py-3.5 px-4 rounded-xl btn-primary text-sm shadow-md shadow-teal-600/25 mt-2"
+              disabled={isSubmitting}
+              className="w-full py-3.5 px-4 rounded-xl btn-primary text-sm shadow-md shadow-teal-600/25 mt-2 disabled:opacity-60"
             >
-              <span>{authMode === 'signin' ? `${t.authSignIn} (${role === 'customer' ? t.navRoleCustomer : t.navRoleWorker})` : (t.authVerifySignUpBtn || 'Verify Details & Sign Up')}</span>
+              <span>{isSubmitting ? 'Please wait…' : authMode === 'signin' ? `${t.authSignIn} (${role === 'customer' ? t.navRoleCustomer : t.navRoleWorker})` : (t.authVerifySignUpBtn || 'Verify Details & Sign Up')}</span>
               <ArrowRight className="w-4 h-4" />
             </button>
           </form>

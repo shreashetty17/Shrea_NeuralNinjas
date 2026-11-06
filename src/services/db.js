@@ -2,6 +2,7 @@
 // Persists Users, Multiple Bookings, and Chat Threads across sessions
 
 import { WORKERS_DATABASE } from '../data/mockData';
+import { upsert, insert, select, hasPendingWrites } from './supabase';
 
 const USERS_STORAGE_KEY = 'kaamsetu_db_users';
 const BOOKINGS_STORAGE_KEY = 'kaamsetu_db_bookings';
@@ -134,7 +135,10 @@ export const getUsers = () => {
 export const saveUser = (user) => {
   try {
     const users = getUsers();
-    const existingIndex = users.findIndex(u => u.phone === user.phone || (u.email && u.email === user.email));
+    const existingIndex = users.findIndex(u =>
+      (user.authUserId && u.authUserId === user.authUserId) ||
+      (user.phone && u.phone === user.phone) ||
+      (user.email && u.email === user.email));
     
     const userToSave = {
       ...user,
@@ -150,6 +154,7 @@ export const saveUser = (user) => {
     }
 
     localStorage.setItem(USERS_STORAGE_KEY, JSON.stringify(users));
+    pushUser(existingIndex >= 0 ? users[existingIndex] : userToSave);
     return userToSave;
   } catch (e) {
     console.error('Error saving user to DB:', e);
@@ -191,8 +196,13 @@ export const addBooking = (booking) => {
       createdAt: new Date().toISOString()
     };
 
+    if (sessionUser && !newBooking.customerPhone) {
+      newBooking.customerPhone = sessionUser.phone;
+      newBooking.customerName = sessionUser.name;
+    }
     bookings.unshift(newBooking);
     localStorage.setItem(BOOKINGS_STORAGE_KEY, JSON.stringify(bookings));
+    pushBooking(newBooking);
     return newBooking;
   } catch (e) {
     console.error('Error adding booking to DB:', e);
@@ -211,6 +221,7 @@ export const updateBookingStatus = (bookingId, status) => {
         bookings[index].escrowLocked = false;
       }
       localStorage.setItem(BOOKINGS_STORAGE_KEY, JSON.stringify(bookings));
+      pushBooking(bookings[index]);
       return bookings[index];
     }
     return null;
@@ -235,6 +246,7 @@ export const cancelBooking = (bookingId, reason = 'Customer requested cancellati
       b.workerCompensationAmount = fee;
       b.escrowLocked = false;
       localStorage.setItem(BOOKINGS_STORAGE_KEY, JSON.stringify(bookings));
+      pushBooking(b);
       return b;
     }
     return null;
@@ -255,6 +267,7 @@ export const verifyBookingOtp = (bookingId, otpEntered) => {
         b.otpVerified = true;
         b.otpVerifiedAt = new Date().toISOString();
         localStorage.setItem(BOOKINGS_STORAGE_KEY, JSON.stringify(bookings));
+        pushBooking(b);
         return { success: true, booking: b };
       } else {
         return { 
@@ -268,4 +281,167 @@ export const verifyBookingOtp = (bookingId, otpEntered) => {
     console.error('Error verifying OTP:', e);
     return { success: false, error: e.message };
   }
+};
+
+// --- SUPABASE CLOUD SYNC ---
+// localStorage stays the fast synchronous cache the UI reads from; every write is
+// mirrored to Supabase, and syncFromCloud() pulls the shared data back down so
+// bookings made on one device show up on others (e.g. customer -> worker portal).
+
+export const DB_SYNC_EVENT = 'kaamsetu-db-sync';
+let sessionUser = null;
+
+// Remember who is logged in so new bookings are tagged with the customer.
+export const setSessionUser = (user) => {
+  sessionUser = user || null;
+  if (user) pushUser(user);
+};
+
+const iso = (v) => (v ? new Date(v).toISOString() : null);
+
+const userToRow = (u) => {
+  const { password, ...safe } = u; // never send passwords to the database
+  return {
+    // one row per phone/email, so the same person on two devices doesn't create duplicates
+    id: `user_${(u.phone || u.email).toString().toLowerCase().replace(/[^a-z0-9@.]/g, '')}`,
+    role: u.role || 'customer',
+    auth_user_id: u.authUserId || null, // link to the Supabase Auth account (auth.users)
+    name: u.name || null,
+    phone: u.phone || null,
+    email: u.email || null,
+    locality: u.locality || null,
+    trade: u.trade || null,
+    trade_label: u.tradeLabel || null,
+    document_name: u.documentName || null,
+    document_type: u.documentType || null,
+    govt_id_document: u.govtIdDocument || null,
+    police_clearance_document: u.policeClearanceDocument || null,
+    is_verified: !!u.isVerified,
+    is_govt_id_verified: !!u.isGovtIdVerified,
+    is_police_clearance_verified: !!u.isPoliceClearanceVerified,
+    avatar: u.avatar || null,
+    created_at: iso(u.createdAt) || new Date().toISOString(),
+    data: safe
+  };
+};
+
+const bookingToRow = (b) => ({
+  id: b.id,
+  customer_phone: b.customerPhone || null,
+  customer_name: b.customerName || null,
+  category: b.category || null,
+  category_name: b.categoryName || null,
+  title: b.title || null,
+  description: b.description || null,
+  address: b.address || null,
+  urgency: b.urgency || null,
+  timing_type: b.timingSlot?.type || null,
+  budget_min: b.budgetRange?.min ?? null,
+  budget_max: b.budgetRange?.max ?? null,
+  quote_amount: b.quoteAmount ?? null,
+  status: b.status || 'en_route',
+  worker_id: b.worker?.id != null ? String(b.worker.id) : null,
+  worker_name: b.worker?.name || null,
+  start_otp: b.startOtp || null,
+  otp_verified: !!b.otpVerified,
+  eta_mins: b.etaMins ?? null,
+  distance_km: b.distanceKm ?? null,
+  escrow_locked: b.escrowLocked !== false,
+  cancellation_reason: b.cancellationReason || null,
+  cancellation_fee: b.cancellationFee ?? null,
+  refund_amount: b.refundAmount ?? null,
+  created_at: iso(b.createdAt) || new Date().toISOString(),
+  otp_verified_at: iso(b.otpVerifiedAt),
+  completed_at: iso(b.completedAt),
+  cancelled_at: iso(b.cancelledAt),
+  data: b
+});
+
+const warn = (what) => (e) => console.warn(`[KaamSetu] Supabase ${what} failed (kept locally):`, e.message);
+
+function pushUser(u) {
+  if (!u || (!u.phone && !u.email)) return;
+  const row = userToRow(u);
+  upsert('app_users', row).catch((e) => {
+    // Database not updated yet (auth_user_id column missing): save the profile without the link.
+    if (/auth_user_id/.test(e.message)) {
+      console.warn('[KaamSetu] Run the latest supabase/migration.sql to link profiles to accounts.');
+      const { auth_user_id, ...rest } = row;
+      return upsert('app_users', rest).catch(warn('user save'));
+    }
+    warn('user save')(e);
+  });
+}
+
+function pushBooking(b) {
+  if (!b || !b.id) return;
+  upsert('bookings', bookingToRow(b)).catch(warn('booking save'));
+}
+
+export const logChatMessage = (bookingId, sender, text) => {
+  if (!bookingId || !text) return;
+  insert('chat_messages', { booking_id: bookingId, sender, text }).catch(warn('chat log'));
+};
+
+// Merge cloud rows into the local cache. Cloud wins for shared ids; local-only
+// rows (e.g. demo seeds on first run) are pushed up.
+export const syncFromCloud = async () => {
+  if (hasPendingWrites()) return false; // don't overwrite a write still in flight
+  try {
+    const [remoteBookings, remoteUsers] = await Promise.all([
+      select('bookings', 'select=data&order=created_at.desc&limit=500'),
+      select('app_users', 'select=data&limit=1000')
+    ]);
+    if (hasPendingWrites()) return false;
+
+    const localBookings = getBookings();
+    const cloudB = remoteBookings.map(r => r.data).filter(Boolean);
+    const cloudIds = new Set(cloudB.map(b => b.id));
+    const localOnly = localBookings.filter(b => !cloudIds.has(b.id));
+    localOnly.forEach(pushBooking);
+    const mergedB = [...cloudB, ...localOnly].sort(
+      (a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0)
+    );
+
+    const localUsers = getUsers();
+    const cloudU = remoteUsers.map(r => r.data).filter(Boolean);
+    const key = (u) => u.phone || u.email;
+    const cloudKeys = new Set(cloudU.map(key));
+    const localUOnly = localUsers.filter(u => !cloudKeys.has(key(u)));
+    localUOnly.forEach(pushUser);
+    // keep local-only fields such as demo passwords
+    const mergedU = [
+      ...cloudU.map(cu => ({ ...(localUsers.find(lu => key(lu) === key(cu)) || {}), ...cu })),
+      ...localUOnly
+    ];
+
+    const changed = JSON.stringify(mergedB) !== JSON.stringify(localBookings);
+    localStorage.setItem(BOOKINGS_STORAGE_KEY, JSON.stringify(mergedB));
+    localStorage.setItem(USERS_STORAGE_KEY, JSON.stringify(mergedU));
+    if (changed && typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent(DB_SYNC_EVENT));
+    }
+    return true;
+  } catch (e) {
+    warn('sync')(e);
+    return false;
+  }
+};
+
+// Pull on load and every few seconds so other devices' changes appear.
+if (typeof window !== 'undefined') {
+  syncFromCloud();
+  setInterval(syncFromCloud, 5000);
+}
+
+// Load the profile that belongs to a Supabase Auth account (cloud first, then local cache).
+export const findUserByAuthId = async (authUserId) => {
+  if (!authUserId) return null;
+  try {
+    const rows = await select('app_users', `select=data&auth_user_id=eq.${encodeURIComponent(authUserId)}&limit=1`);
+    if (rows && rows[0] && rows[0].data) return rows[0].data;
+  } catch (e) {
+    warn('profile load')(e);
+  }
+  return getUsers().find(u => u.authUserId === authUserId) || null;
 };

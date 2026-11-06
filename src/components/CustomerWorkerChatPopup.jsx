@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { logChatMessage } from '../services/db';
 import { 
   Send, 
   Phone, 
@@ -161,6 +162,7 @@ export const CustomerWorkerChatPopup = ({
     };
 
     setMessages((prev) => [...prev, newMessage]);
+    logChatMessage(booking?.id, 'customer', newMessage.text);
     setInputText('');
     playAudioCue('bid_received');
 
@@ -192,6 +194,7 @@ export const CustomerWorkerChatPopup = ({
         ];
       }
       const replyText = workerReplies[Math.floor(Math.random() * workerReplies.length)];
+      logChatMessage(booking?.id, 'worker', replyText);
 
       setMessages((prev) => [
         ...prev,

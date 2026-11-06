@@ -17,8 +17,9 @@ import { GuidedDemoTour } from './components/GuidedDemoTour';
 import { TrustSafetyModal } from './components/TrustSafetyModal';
 import { KaamWalaLogo } from './components/KaamWalaLogo';
 import { SERVICE_CATEGORIES, WORKERS_DATABASE } from './data/mockData';
-import { getBookings, addBooking, cancelBooking, getUsers } from './services/db';
+import { getBookings, addBooking, cancelBooking, getUsers, setSessionUser, DB_SYNC_EVENT } from './services/db';
 import { TRANSLATIONS } from './data/translations';
+import { signOut } from './services/supabase';
 
 export function App() {
   // Current user state: null prompts upfront AuthGate
@@ -72,6 +73,13 @@ export function App() {
     }
   }, []);
 
+  // Refresh when Supabase sync brings in changes from other devices
+  useEffect(() => {
+    const onSync = () => setBookings(getBookings());
+    window.addEventListener(DB_SYNC_EVENT, onSync);
+    return () => window.removeEventListener(DB_SYNC_EVENT, onSync);
+  }, []);
+
   const handleOpenBookForCategory = (cat) => {
     setSelectedCategoryForBooking(cat);
     setIsBookingModalOpen(true);
@@ -96,6 +104,7 @@ export function App() {
     return (
       <AuthGate
         onLoginSuccess={(user) => {
+          setSessionUser(user);
           setCurrentUser(user);
           setActivePage('home');
         }}
@@ -109,7 +118,7 @@ export function App() {
   if (currentUser.role === 'worker') {
     return (
       <BoltWorkerPortal
-        onSwitchUser={() => setCurrentUser(null)}
+        onSwitchUser={() => { signOut(); setCurrentUser(null); }}
         lang={lang}
         currentUser={currentUser}
         onLanguageChange={setLang}
@@ -128,7 +137,7 @@ export function App() {
         setActivePage={setActivePage}
         onOpenBookModal={() => setIsBookingModalOpen(true)}
         onOpenSos={() => setSosModalOpen(true)}
-        onSwitchUser={() => setCurrentUser(null)}
+        onSwitchUser={() => { signOut(); setCurrentUser(null); }}
         bookingsCount={bookings.filter(b => b.status === 'en_route' || b.status === 'scheduled').length}
         unreadCount={activeBooking?.worker ? 1 : 0}
         lang={lang}
