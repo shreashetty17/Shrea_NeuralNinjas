@@ -8,7 +8,7 @@
       // Button / KaiOS phones get the lightweight page (add ?full=1 to skip)
       (function () {
         var ua = navigator.userAgent || "";
-        if (location.search.indexOf("full=1") < 0 && /KAIOS|Opera Mini|MAUI|J2ME|MIDP|Series40|Nokia|SymbianOS|NetFront|Obigo|UCBrowser/.*Mini|Smart-?Feature/i.test(ua)) {
+        if (location.search.indexOf("full=1") < 0 && /KAIOS|Opera Mini|MAUI|J2ME|MIDP|Series40|Nokia|SymbianOS|NetFront|Obigo|UCBrowser.*Mini|Smart-?Feature/i.test(ua)) {
           location.replace("lite.html");
         }
       })();
