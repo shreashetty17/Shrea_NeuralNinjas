@@ -11,6 +11,7 @@ import {
   Users,
   Home,
   Calendar,
+  Inbox,
   Globe
 } from 'lucide-react';
 import { KaamSetuLogo } from './KaamSetuLogo';
@@ -25,6 +26,7 @@ export const CleanNavbar = ({
   onOpenSos,
   onSwitchUser,
   bookingsCount = 0,
+  requestsCount = 0,
   unreadCount = 1,
   lang = 'en',
   onLanguageChange,
@@ -36,6 +38,7 @@ export const CleanNavbar = ({
   const navItems = [
     { id: 'home', label: t.navHome, icon: Home },
     { id: 'services', label: t.navServices, icon: Wrench },
+    { id: "my-requests", label: "My Requests", icon: Inbox, badge: requestsCount > 0 ? requestsCount : null },
     { id: 'my-bookings', label: t.navMyBookings, icon: Calendar, badge: bookingsCount > 0 ? bookingsCount : null }
   ];
 

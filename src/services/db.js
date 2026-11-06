@@ -182,7 +182,7 @@ export const proposePrice = (bookingId, by, amount, worker) => {
   const customerName = firstName(b.customerName, 'The customer');
   const notices = by === 'worker'
     ? [
-        ['customer', `${workerName} sent a price for ${job}: ₹${amount}. Agree or send your price.`, 'bid'],
+        ['customer', `${workerName} negotiated a price for ${job}: ₹${amount}. Open My Requests to accept it or send your price.`, 'bid'],
         ['worker', `You sent ₹${amount} to ${customerName} for ${job}. ${left} price change${left === 1 ? '' : 's'} left.`, 'bid']
       ]
     : [
@@ -200,6 +200,24 @@ export const customerAgreePrice = (bookingId) => {
   return replaceBooking(withNotices({ ...b, customerAgreed: true }, [
     ['worker', `${firstName(b.customerName, 'The customer')} agreed to ₹${b.quoteAmount} for ${job}. Accept to confirm the order.`, 'bid'],
     ['customer', `You agreed to ₹${b.quoteAmount}. Waiting for ${firstName(b.worker?.name, 'the worker')} to confirm.`, 'bid']
+  ]));
+};
+
+// Customer accepts the worker's price: the order is confirmed and moves to My Bookings.
+export const customerAcceptOffer = (bookingId) => {
+  const b = bookings.find(x => x.id === bookingId);
+  if (!b || !b.worker?.name) return null;
+  const updated = {
+    ...b,
+    status: b.timingSlot?.type === 'scheduled' ? 'scheduled' : 'en_route',
+    acceptedAt: new Date().toISOString(),
+    acceptedBy: 'customer',
+    customerAgreed: true
+  };
+  const job = b.categoryName || 'the job';
+  return replaceBooking(withNotices(updated, [
+    ['worker', `${firstName(b.customerName, 'The customer')} accepted your price of ₹${b.quoteAmount} for ${job}. It is now in My Orders.`, 'accepted'],
+    ['customer', `You accepted ${firstName(b.worker.name, 'the worker')}'s offer of ₹${b.quoteAmount} for ${job}. See it in My Bookings.`, 'accepted']
   ]));
 };
 

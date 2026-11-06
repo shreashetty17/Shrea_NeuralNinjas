@@ -3,6 +3,7 @@ import { AuthGate } from './components/AuthGate';
 import { CleanNavbar } from './components/CleanNavbar';
 import { CustomerHome } from './pages/CustomerHome';
 import { CustomerProfile } from './pages/CustomerProfile';
+import { CustomerMyRequests } from "./pages/CustomerMyRequests";
 import { CustomerServices } from './pages/CustomerServices';
 import { CustomerHowItWorks } from './pages/CustomerHowItWorks';
 import { CustomerSafety } from './pages/CustomerSafety';
@@ -18,7 +19,7 @@ import { GuidedDemoTour } from './components/GuidedDemoTour';
 import { TrustSafetyModal } from './components/TrustSafetyModal';
 import { KaamWalaLogo } from './components/KaamWalaLogo';
 import { SERVICE_CATEGORIES, WORKERS_DATABASE } from './data/mockData';
-import { getBookings, addBooking, cancelBooking, getUsers, setSessionUser, getNotifications, DB_SYNC_EVENT } from './services/db';
+import { getBookings, addBooking, cancelBooking, getUsers, setSessionUser, getNotifications, DB_SYNC_EVENT } from "./services/db";
 import { TRANSLATIONS } from './data/translations';
 import { signOut } from './services/supabase';
 
@@ -95,11 +96,17 @@ export function App() {
     // Open the booking page: live map of the worker, chat and cancellation
     setIsChatOpen(false);
 
-    setActivePage('tracker');
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    // a new bid request goes to My Requests; an accepted booking opens its page
+    setActivePage(newBooking?.status === "negotiating" ? "my-requests" : "tracker");
+    window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
   const t = TRANSLATIONS[lang] || TRANSLATIONS.en;
+
+  // bookings that belong to the signed-in customer
+  const isMine = (b) => !!currentUser && ([currentUser.phone, currentUser.email].filter(Boolean).includes(b.customerPhone) || (!!currentUser.name && b.customerName === currentUser.name));
+  const myBookings = bookings.filter(isMine);
+  const myRequests = myBookings.filter((b) => b.status === "negotiating");
 
   // 1. Upfront Login & Sign Up Gate Screen
   if (!currentUser) {
@@ -140,10 +147,11 @@ export function App() {
         onOpenBookModal={() => setIsBookingModalOpen(true)}
         onOpenSos={() => setSosModalOpen(true)}
         onSwitchUser={() => { signOut(); setCurrentUser(null); }}
-        bookingsCount={bookings.filter(b => b.status === 'en_route' || b.status === 'scheduled').length}
+        bookingsCount={myBookings.filter(b => b.status === "en_route" || b.status === "scheduled").length}
+        requestsCount={myRequests.filter((b) => b.lastOfferBy === "worker").length}
         unreadCount={activeBooking?.worker ? 1 : 0}
         notifications={currentUser ? getNotifications('customer', (b) => [currentUser.phone, currentUser.email].filter(Boolean).includes(b.customerPhone) || (!!currentUser.name && b.customerName === currentUser.name)) : []}
-        onOpenNotification={(n) => { const bk = bookings.find((b) => b.id === n.bookingId); if (bk) { setActiveBooking(bk); setActivePage('tracker'); window.scrollTo({ top: 0, behavior: 'smooth' }); } }}
+        onOpenNotification={(n) => { const bk = bookings.find((b) => b.id === n.bookingId); if (bk) { setActiveBooking(bk); setActivePage(bk.status === "negotiating" ? "my-requests" : "tracker"); window.scrollTo({ top: 0, behavior: 'smooth' }); } }}
         lang={lang}
         onLanguageChange={setLang}
       />
@@ -208,9 +216,19 @@ export function App() {
         )}
 
         {/* PAGE 6: MY BOOKINGS (MULTIPLE BOOKINGS TRACKER) */}
+        {activePage === "my-requests" && (
+          <CustomerMyRequests
+            requests={myRequests}
+            onUpdated={() => setBookings(getBookings())}
+            onAccepted={(bk) => { setBookings(getBookings()); setActiveBooking(bk); setActivePage("my-bookings"); window.scrollTo({ top: 0, behavior: "smooth" }); }}
+            onCancel={(r) => { if (window.confirm("Cancel this request? Workers will be told.")) { cancelBooking(r.id, "Customer cancelled the request", 0); setBookings(getBookings()); } }}
+            onNewRequest={() => setIsBookingModalOpen(true)}
+          />
+        )}
+
         {activePage === 'my-bookings' && (
           <CustomerMyBookings
-            bookings={bookings}
+            bookings={myBookings.filter((b) => b.status !== "negotiating")}
             onTrackBooking={(bk) => {
               setActiveBooking(bk);
               setActivePage('tracker');
