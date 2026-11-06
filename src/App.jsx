@@ -15,7 +15,6 @@ import { BookingDetailPage } from './pages/BookingDetailPage';
 import { CancellationModal } from './components/CancellationModal';
 import { BoltWorkerPortal } from './components/BoltWorkerPortal';
 import { BoltBookingModal } from './components/BoltBookingModal';
-import { Slide5Comparison } from './components/Slide5Comparison';
 import { GuidedDemoTour } from './components/GuidedDemoTour';
 import { TrustSafetyModal } from './components/TrustSafetyModal';
 import { KaamWalaLogo } from './components/KaamWalaLogo';
@@ -54,7 +53,6 @@ export function App() {
   const [sosModalOpen, setSosModalOpen] = useState(false);
   const [verifyModalOpen, setVerifyModalOpen] = useState(false);
   const [escrowModalOpen, setEscrowModalOpen] = useState(false);
-  const [isComparisonOpen, setIsComparisonOpen] = useState(false);
 
   // Global Cancellation Handler
   const handleGlobalCancelBooking = (bookingToCancel, fee, reason) => {
@@ -316,21 +314,6 @@ export function App() {
         lang={lang}
       />
 
-      {/* Slide 5 Pitch Comparison Modal */}
-      {isComparisonOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 overflow-y-auto">
-          <div className="bg-white rounded-3xl max-w-4xl w-full p-6 shadow-2xl relative my-8">
-            <button
-              onClick={() => setIsComparisonOpen(false)}
-              className="absolute top-6 right-6 text-slate-400 hover:text-slate-700 font-bold"
-            >
-              ✕
-            </button>
-            <Slide5Comparison />
-          </div>
-        </div>
-      )}
-
       {/* 2-Min Demo Walkthrough Tour for Judges */}
       <GuidedDemoTour
         isOpen={isDemoTourOpen}
@@ -366,9 +349,6 @@ export function App() {
             </button>
             <button onClick={() => { setActivePage("help"); window.scrollTo({ top: 0, behavior: "smooth" }); }} className="hover:text-primary-600 transition-colors">
               Help
-            </button>
-            <button onClick={() => setIsComparisonOpen(true)} className="text-primary-600 hover:underline">
-              Slide 5 Matrix
             </button>
           </div>
 
