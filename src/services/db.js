@@ -335,7 +335,8 @@ const bookingToRow = (b) => ({
   budget_min: b.budgetRange?.min ?? null,
   budget_max: b.budgetRange?.max ?? null,
   quote_amount: b.quoteAmount ?? null,
-  status: b.status || 'en_route',
+  // the table's status column only allows the classic values; 'negotiating' is kept in data.status
+  status: b.status === 'negotiating' ? 'scheduled' : (b.status || 'en_route'),
   worker_id: b.worker?.id != null ? String(b.worker.id) : null,
   worker_name: b.worker?.name || null,
   start_otp: b.startOtp || null,
