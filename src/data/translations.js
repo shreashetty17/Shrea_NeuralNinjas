@@ -80,7 +80,8 @@ export const TRANSLATIONS = {
     servicesTitle: 'What service do you need?',
     servicesSubtitle: 'Post your request with a budget range. Multiple nearby verified technicians submit live quotes in minutes. You negotiate directly.',
     allTrades: 'All Trades',
-    commonRepairsCovered: 'Common Repairs Covered',
+    commonRepairsCovered: 'Choose a service',
+    chooseServiceOption: 'Choose what you need…',
     fairPriceBand: 'Fair Price Band',
     btnRequestBids: 'Request Bids',
     fairPriceGuideTag: 'KaamSetu Fair-Price Guide',
@@ -90,48 +91,12 @@ export const TRANSLATIONS = {
 
     // Sub-services directory
     subServices: {
-      plumbing: [
-        'Mixer tap & diverter replacement',
-        'Concealed pipe leak detection',
-        'Toilet flush tank overhaul',
-        'Water heater / geyser connection',
-        'Kitchen sink blockage clearing'
-      ],
-      electrical: [
-        'Main MCB tripping investigation',
-        'Ceiling fan repair & installation',
-        'Modular switchboard replacement',
-        'Inverter battery setup & wiring',
-        'Heavy appliance earthing checks'
-      ],
-      cleaning: [
-        'Deep kitchen degreasing & chimney',
-        'Full bathroom tile & grout descaling',
-        'Sofa & mattress upholstery shampoo',
-        'Floor scrubbing & machine buffing',
-        'Pre-move in / move-out sanitization'
-      ],
-      cooking: [
-        'Daily 2-meal North / South Indian menu',
-        'Special weekend thali preparation',
-        'Dietetic & low-oil meal options',
-        'Party catering up to 15 guests',
-        'Trial meal tasting booking'
-      ],
-      ac_repair: [
-        'Split & window AC power jet servicing',
-        'Freon gas leak check & refill',
-        'Cooling coil & PCB diagnostics',
-        'Water leakage from indoor unit',
-        'Compressor capacitor replacement'
-      ],
-      carpentry: [
-        'Main door godrej lock installation',
-        'Cupboard hinge realignment',
-        'Custom wall shelving & drilling',
-        'Bed frame & hydraulic repair',
-        'Window latch & slider repair'
-      ]
+      plumbing: ['Fix pipe leaks', 'Install water heaters', 'Unclog drains', 'Repair toilet flushes'],
+      electrical: ['Replace switchboards', 'Mount ceiling fans', 'Fix circuit breakers', 'Install home inverters'],
+      cleaning: ['Daily sweeping and mopping', 'Deep clean bathrooms', 'Move-in/move-out cleaning', 'Dust windows and ceilings'],
+      cooking: ['Cook daily regional meals', 'Prepare diet-specific food (keto, diabetic)', 'Cook for small household gatherings', 'Prep raw ingredients (chopping, grinding)'],
+      ac_repair: ['AC gas refill and wash', 'Fix washing machine drums', 'Repair fridge compressors', 'Replace microwave parts'],
+      carpentry: ['Repair modular kitchen cabinets', 'Trim and align wooden doors', 'Stabilize squeaky beds/furniture', 'Build wall-mounted shelves']
     },
 
     // How It Works Page
@@ -615,7 +580,8 @@ export const TRANSLATIONS = {
     servicesTitle: 'आपको कौन सी सेवा चाहिए?',
     servicesSubtitle: 'अपने बजट के साथ आवश्यकता दर्ज करें। आसपास के सत्यापित कारीगर मिनटों में बोली लगाएंगे। आप सीधे बात करें।',
     allTrades: 'सभी श्रेणियाँ',
-    commonRepairsCovered: 'सामान्य मरम्मत कार्य',
+    commonRepairsCovered: 'सेवा चुनें',
+    chooseServiceOption: 'आपको क्या चाहिए, चुनें…',
     fairPriceBand: 'उचित मूल्य दायरा',
     btnRequestBids: 'बोली माँगें',
     fairPriceGuideTag: 'कामसेतु उचित मूल्य मार्गदर्शिका',
@@ -625,48 +591,12 @@ export const TRANSLATIONS = {
 
     // Sub-services directory
     subServices: {
-      plumbing: [
-        'मिक्सर नल व डायवर्टर बदलना',
-        'दीवार के अंदर पाइप लीकेज जांच',
-        'टॉयलेट फ्लश टैंक की मरम्मत',
-        'गीजर व वॉटर हीटर फिटिंग',
-        'किचन सिंक व नाली की रुकावट खोलना'
-      ],
-      electrical: [
-        'मेन एमसीबी ट्रिपिंग की जांच व सुधार',
-        'सीलिंग फैन मरम्मत व नई फिटिंग',
-        'मॉड्यूलर स्विचबोर्ड बदलना',
-        'इन्वर्टर बैटरी वायरिंग व सेटअप',
-        'घरेलू उपकरणों की अर्थिंग जांच'
-      ],
-      cleaning: [
-        'किचन डीप क्लीनिंग व चिमनी सफाई',
-        'बाथरूम टाइल्स व ग्राउट डीस्केलिंग',
-        'सोफा व गद्दे शैम्पू ड्राईक्लीन',
-        'फर्श स्क्रबिंग व मशीन पॉलिश',
-        'घर शिफ्टिंग पूर्व पूरी सैनिटाइजेशन'
-      ],
-      cooking: [
-        'दैनिक 2 वक्त उत्तर/दक्षिण भारतीय खाना',
-        'सप्ताहांत विशेष थाली तैयारी',
-        'डाइट व कम तेल का पौष्टिक भोजन',
-        '15 मेहमानों तक छोटी पार्टी खाना',
-        'ट्रायल भोजन टेस्टिंग बुकिंग'
-      ],
-      ac_repair: [
-        'स्प्लिट व विंडो एसी पावर जेट सर्विसिंग',
-        'फ्रीन गैस लीकेज जांच व रीफिल',
-        'कूलिंग कॉइल व पीसीबी फॉल्ट सुधार',
-        'इनडोर यूनिट से पानी टपकना बंद करना',
-        'कंप्रेसर कैपेसिटर रिप्लेसमेंट'
-      ],
-      carpentry: [
-        'मेन डोर गोदरेज लॉक इंस्टॉलेशन',
-        'अलमारी के कब्जे व पल्ले ठीक करना',
-        'कस्टम दीवार शेल्फ व ड्रिलिंग',
-        'बेड फ्रेम व हाइड्रोलिक रिपेयर',
-        'खिड़की की कुंडी व स्लाइडर दुरुस्ती'
-      ]
+      plumbing: ['पाइप का रिसाव ठीक करना', 'गीज़र लगाना', 'बंद नाली खोलना', 'टॉयलेट फ्लश ठीक करना'],
+      electrical: ['स्विचबोर्ड बदलना', 'छत का पंखा लगाना', 'MCB / सर्किट ब्रेकर ठीक करना', 'घर का इन्वर्टर लगाना'],
+      cleaning: ['रोज़ झाड़ू-पोछा', 'बाथरूम की गहरी सफाई', 'घर बदलते समय पूरी सफाई', 'खिड़की और छत की धूल साफ करना'],
+      cooking: ['रोज़ का घरेलू खाना बनाना', 'डाइट वाला खाना (कीटो, डायबिटीज़)', 'छोटे घरेलू कार्यक्रम के लिए खाना', 'सब्ज़ी काटना और मसाला पीसना'],
+      ac_repair: ['AC गैस भरना और धुलाई', 'वॉशिंग मशीन का ड्रम ठीक करना', 'फ्रिज का कंप्रेसर ठीक करना', 'माइक्रोवेव के पुर्ज़े बदलना'],
+      carpentry: ['रसोई की अलमारी ठीक करना', 'लकड़ी के दरवाज़े को सही करना', 'चरमराते पलंग/फर्नीचर को मज़बूत करना', 'दीवार पर शेल्फ लगाना']
     },
 
     // How It Works Page
@@ -1150,7 +1080,8 @@ export const TRANSLATIONS = {
     servicesTitle: 'तुम्हाला कोणती सेवा हवी आहे?',
     servicesSubtitle: 'तुमच्या बजेटसह मागणी नोंदवा. जवळचे पडताळलेले तंत्रज्ञ काही मिनिटांत थेट कोटेशन पाठवतील. तुम्ही थेट बोला.',
     allTrades: 'सर्व प्रकार',
-    commonRepairsCovered: 'समाविष्ट नियमित दुरुस्ती',
+    commonRepairsCovered: 'सेवा निवडा',
+    chooseServiceOption: 'तुम्हाला काय हवे ते निवडा…',
     fairPriceBand: 'वाजवी दर मर्यादा',
     btnRequestBids: 'दर मागवा',
     fairPriceGuideTag: 'कामसेतू वाजवी दर मार्गदर्शक',
@@ -1160,48 +1091,12 @@ export const TRANSLATIONS = {
 
     // Sub-services directory
     subServices: {
-      plumbing: [
-        'मिक्सर नळ व डायव्हर्टर बदलणे',
-        'भिंतीमधील पाईप गळती शोधणे',
-        'टॉयलेट फ्लश टँक दुरुस्ती',
-        'गिझर व वॉटर हीटर फिटिंग',
-        'किचन सिंक व ड्रेनेज चोकअप काढणे'
-      ],
-      electrical: [
-        'मेन एमसीबी ट्रिपिंग तपासणी व दुरुस्ती',
-        'सिलिंग फॅन दुरुस्ती व नवीन बसवणे',
-        'मॉड्युलर स्विचबोर्ड बदलणे',
-        'इन्व्हर्टर बॅटरी वायरिंग व जोडणी',
-        'घरातील उपकरणांची अर्थिंग तपासणी'
-      ],
-      cleaning: [
-        'किचन डीप क्लिनिंग व चिमणी स्वच्छता',
-        'बाथरूम फरशी व ग्रूट डीस्केलिंग',
-        'सोफा व गादी शॅम्पू ड्रायक्लिनिंग',
-        'फरशी स्क्रबिंग व मशीन पॉलिश',
-        'घरात शिफ्ट होण्यापूर्वी संपूर्ण निर्जंतुकीकरण'
-      ],
-      cooking: [
-        'दैनिक २ वेळचे रुचकर जेवण (मराठी/उत्तर भारतीय)',
-        'रविवार किंवा सणांची विशेष थाळी',
-        'डाएट व कमी तेलाचे सात्विक जेवण',
-        '१५ लोकांपर्यंत घरगुती पार्टी जेवण',
-        'चाचणी जेवण टेस्टींग बुकिंग'
-      ],
-      ac_repair: [
-        'स्प्लिट व विंडो एसी पॉवर जेट सर्व्हिसिंग',
-        'फ्रिओन गॅस गळती तपासणी व रिफिल',
-        'कुलिंग कॉईल व पीसीबी फॉल्ट दुरुस्ती',
-        'इनडोअर युनिटमधून पाणी गळणे बंद करणे',
-        'कॉम्प्रेशन कॅपेसिटर बदलणे'
-      ],
-      carpentry: [
-        'मुख्य दरवाजा गोदरेज लॉक बसवणे',
-        'कपाटाचे बिजागरे व दारे व्यवस्थित करणे',
-        'भिंतीवर शेल्फ व ड्रिलिंग काम',
-        'बेड फ्रेम व हायड्रॉलिक दुरुस्ती',
-        'खिडकीच्या कड्या व स्लायडर दुरुस्ती'
-      ]
+      plumbing: ['पाईपची गळती दुरुस्त करणे', 'गिझर बसवणे', 'तुंबलेली नाली मोकळी करणे', 'टॉयलेट फ्लश दुरुस्त करणे'],
+      electrical: ['स्विचबोर्ड बदलणे', 'छताचा पंखा बसवणे', 'MCB / सर्किट ब्रेकर दुरुस्त करणे', 'घरचा इन्व्हर्टर बसवणे'],
+      cleaning: ['रोजचे झाडू-पोछा', 'बाथरूमची खोल स्वच्छता', 'घर बदलताना पूर्ण स्वच्छता', 'खिडक्या आणि छताची धूळ साफ करणे'],
+      cooking: ['रोजचे घरगुती जेवण बनवणे', 'डाएटनुसार जेवण (कीटो, मधुमेह)', 'छोट्या घरगुती कार्यक्रमासाठी जेवण', 'भाज्या चिरणे आणि मसाला वाटणे'],
+      ac_repair: ['AC गॅस भरणे आणि धुलाई', 'वॉशिंग मशीनचा ड्रम दुरुस्त करणे', 'फ्रिजचा कॉम्प्रेसर दुरुस्त करणे', 'मायक्रोवेव्हचे भाग बदलणे'],
+      carpentry: ['किचनचे कपाट दुरुस्त करणे', 'लाकडी दरवाजा नीट बसवणे', 'करकरणारे बेड/फर्निचर मजबूत करणे', 'भिंतीवर शेल्फ बसवणे']
     },
 
     // How It Works Page

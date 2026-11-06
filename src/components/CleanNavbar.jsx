@@ -103,19 +103,6 @@ export const CleanNavbar = ({
               </button>
             </div>
 
-            {/* User Profile Pill with Switch/Signout */}
-            {currentUser && (
-              <div 
-                onClick={onSwitchUser}
-                className="hidden sm:flex items-center gap-2 py-1.5 px-3 rounded-full bg-slate-100 hover:bg-slate-200/80 border border-slate-200 text-xs font-semibold text-slate-700 cursor-pointer transition-colors"
-                title="Click to switch role or sign in as another user"
-              >
-                <div className="w-2 h-2 rounded-full bg-primary-600" />
-                <span className="font-bold text-slate-900 line-clamp-1 max-w-[100px]">{currentUser.name}</span>
-                <span className="text-[10px] text-primary-600 font-bold underline">{t.navSwitch}</span>
-              </div>
-            )}
-
             {/* Emergency SOS siren button */}
             <button
               onClick={onOpenSos}
@@ -125,12 +112,24 @@ export const CleanNavbar = ({
               <ShieldAlert className="w-5 h-5" />
             </button>
 
-            {/* Single Primary Action Button */}
+            {/* User profile icon: opens the profile page */}
             <button
-              onClick={onOpenBookModal}
-              className="btn-primary text-xs sm:text-sm px-3.5 sm:px-5 py-2.5 shadow-sm"
+              onClick={() => setActivePage('profile')}
+              title={currentUser?.name ? `${currentUser.name} – My profile` : 'My profile'}
+              aria-label="My profile"
+              className={`w-10 h-10 rounded-full overflow-hidden flex items-center justify-center border-2 transition-all ${
+                activePage === 'profile'
+                  ? 'border-[#149B8B] ring-2 ring-[#149B8B]/30'
+                  : 'border-slate-200 hover:border-[#149B8B]'
+              } bg-[#0A2540] text-white font-bold text-sm`}
             >
-              <span>{t.navFindWorker}</span>
+              {currentUser?.avatar ? (
+                <img src={currentUser.avatar} alt="" className="w-full h-full object-cover" />
+              ) : currentUser?.name ? (
+                <span>{currentUser.name.trim().charAt(0).toUpperCase()}</span>
+              ) : (
+                <User className="w-5 h-5" />
+              )}
             </button>
 
           </div>

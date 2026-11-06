@@ -56,30 +56,6 @@ export const CustomerMyBookings = ({
 
   return (
     <div className="space-y-8 animate-in fade-in">
-      
-      {/* Header with Title and 'Book Another Service' CTA */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-6 sm:p-8 rounded-3xl border border-slate-200/90 shadow-bolt-sm">
-        <div>
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary-100 text-primary-800 text-xs font-bold uppercase tracking-wider mb-2">
-            <span>{lang === 'hi' ? 'ग्राहक डैशबोर्ड' : lang === 'mr' ? 'ग्राहक डॅशबोर्ड' : 'Customer Dashboard'}</span>
-          </div>
-          <h1 className="text-2xl sm:text-3xl font-display font-bold text-slate-900">
-            {t.bookingsTitle}
-          </h1>
-          <p className="text-xs sm:text-sm text-slate-500 mt-1 max-w-xl">
-            {t.bookingsSubtitle}
-          </p>
-        </div>
-
-        <button
-          onClick={onBookNewService}
-          className="btn-primary text-xs sm:text-sm px-5 py-3 shadow-sm flex items-center gap-2 shrink-0 self-start sm:self-auto"
-        >
-          <Plus className="w-4 h-4" />
-          <span>{t.bookAnotherService}</span>
-        </button>
-      </div>
-
       {/* Filter Tabs */}
       <div className="flex flex-wrap items-center gap-2 bg-white p-2 rounded-2xl border border-slate-200/90 shadow-xs">
         {[

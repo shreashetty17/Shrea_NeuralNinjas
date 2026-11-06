@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { AuthGate } from './components/AuthGate';
 import { CleanNavbar } from './components/CleanNavbar';
 import { CustomerHome } from './pages/CustomerHome';
+import { CustomerProfile } from './pages/CustomerProfile';
 import { CustomerServices } from './pages/CustomerServices';
 import { CustomerHowItWorks } from './pages/CustomerHowItWorks';
 import { CustomerSafety } from './pages/CustomerSafety';
@@ -225,6 +226,15 @@ export function App() {
             onBookNewService={() => setIsBookingModalOpen(true)}
             onUpdateBookings={() => setBookings(getBookings())}
             lang={lang}
+          />
+        )}
+
+        {/* PROFILE (opened from the navbar profile icon) */}
+        {activePage === 'profile' && (
+          <CustomerProfile
+            user={currentUser}
+            bookingsCount={bookings.filter((b) => b.customerPhone && (b.customerPhone === currentUser?.phone || b.customerPhone === currentUser?.email)).length}
+            onLogout={() => { signOut(); setCurrentUser(null); setActivePage('home'); }}
           />
         )}
 

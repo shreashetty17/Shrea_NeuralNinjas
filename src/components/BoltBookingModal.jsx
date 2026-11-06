@@ -24,7 +24,7 @@ export const BoltBookingModal = ({ isOpen, onClose, initialCategory, onBookingCo
   const [category, setCategory] = useState(initialCategory || SERVICE_CATEGORIES[0]);
   const [customerName, setCustomerName] = useState(currentUser?.name || '');
   const [customerPhone, setCustomerPhone] = useState(currentUser?.phone || currentUser?.email || '');
-  const [description, setDescription] = useState('Kitchen diverter cartridge leaking into vanity cabinet.');
+  const [description, setDescription] = useState('');
   const [address, setAddress] = useState(currentUser?.locality || '');
   
   const t = TRANSLATIONS[lang] || TRANSLATIONS.en;
@@ -49,6 +49,8 @@ export const BoltBookingModal = ({ isOpen, onClose, initialCategory, onBookingCo
 
   useEffect(() => {
     if (initialCategory) setCategory(initialCategory);
+    // Pre-fill the job with the specific service picked on the Services page
+    if (initialCategory?.selectedSubService) setDescription(initialCategory.selectedSubService);
   }, [initialCategory]);
 
   const getCategoryName = (cat) => {
