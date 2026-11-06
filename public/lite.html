@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>KaamSetu Lite</title>
+<style>
+body{margin:0;font-family:Arial,sans-serif;font-size:15px;background:#fff;color:#0A2540}
+header{background:#0A2540;color:#fff;padding:8px}
+header b{color:#5fd3c4}
+h2{font-size:16px;margin:12px 0 6px;color:#149B8B}
+.w{padding:8px}
+label{display:block;margin-top:6px;font-weight:bold}
+input,select{width:100%;box-sizing:border-box;font-size:15px;padding:6px;border:1px solid #888}
+button{font-size:15px;padding:8px;margin-top:6px;background:#149B8B;color:#fff;border:0;width:100%}
+button.b2{background:#0A2540}
+a{color:#0A2540}
+a:focus,button:focus,input:focus,select:focus{outline:3px solid #f5a623}
+.job{border:1px solid #ccc;padding:6px;margin:6px 0}
+.msg{background:#e8f7f4;padding:6px;margin:6px 0}
+.err{background:#fdecec;padding:6px;margin:6px 0}
+small{color:#555}
+</style>
+</head>
+<body>
+<header>Kaam<b>Setu</b> Lite &middot; button phone version</header>
+<div class="w">
+<div id="m"></div>
+
+<div id="reg">
+<h2>1. Register as worker / कारीगर पंजीकरण</h2>
+<form id="rf">
+<label>Name / नाम</label><input id="rn" required>
+<label>Mobile number / मोबाइल</label><input id="rp" type="tel" maxlength="10" required>
+<label>Work / काम</label>
+<select id="rt">
+<option value="plumbing">Plumber / प्लंबर</option>
+<option value="electrical">Electrician / इलेक्ट्रीशियन</option>
+<option value="cleaning">Cleaning / सफाई</option>
+<option value="cooking">Cook / रसोइया</option>
+<option value="ac_repair">AC repair / एसी मरम्मत</option>
+<option value="carpentry">Carpenter / बढ़ई</option>
+</select>
+<label>Area / इलाका</label><input id="ra" placeholder="e.g. Bandra West">
+<label>e-Shram UAN (12 digits, optional)</label><input id="ru" type="tel" maxlength="12">
+<small>No e-Shram card? Register free at <a href="https://register.eshram.gov.in/">eshram.gov.in</a> or call 14434.</small>
+<button type="submit">Register / पंजीकरण करें</button>
+</form>
+</div>
+
+<div id="me" style="display:none">
+<p id="mi"></p>
+<a href="#" id="lo">Change worker (log out)</a>
+</div>
+
+<h2>2. Jobs near you / नए काम</h2>
+<button class="b2" id="rl">Refresh jobs</button>
+<div id="jobs"><small>Register first to see jobs.</small></div>
+
+<h2>3. Help</h2>
+<small>Accept a job at the customer's price, or send your price (max 3 times). The customer is notified. Accepted jobs: call the customer and ask for the 4-digit OTP at the door.</small>
+<p><a href="./?full=1">Open full website</a></p>
+</div>
+
+<script>
+var U='https://mmkmfishmjbyebwkgjcm.supabase.co/rest/v1/',K='sb_publishable_ENIzWOC_9ZD1qKDeLH0miQ_NCsfKIHY',MAX=3;
+function $(i){return document.getElementById(i)}
+function req(m,p,body,cb,extra){var x=new XMLHttpRequest();x.open(m,U+p,true);x.setRequestHeader('apikey',K);x.setRequestHeader('Authorization','Bearer '+K);x.setRequestHeader('Content-Type','application/json');if(extra)x.setRequestHeader('Prefer',extra);x.onreadystatechange=function(){if(x.readyState==4){var ok=x.status>=200&&x.status<300,d=null;try{d=JSON.parse(x.responseText)}catch(e){}cb(ok,d)}};x.send(body?JSON.stringify(body):null)}
+function msg(t,e){$('m').innerHTML='<div class="'+(e?'err':'msg')+'">'+t+'</div>';window.scrollTo(0,0)}
+function now(){return new Date().toISOString()}
+function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]})}
+var W=null;try{W=JSON.parse(localStorage.getItem('ks_lite_worker')||'null')}catch(e){}
+var TL={plumbing:'Plumber',electrical:'Electrician',cleaning:'Cleaning',cooking:'Cook',ac_repair:'AC repair',carpentry:'Carpenter'};
+function phoneFmt(d){return '+91 '+d.slice(0,5)+' '+d.slice(5)}
+function show(){if(W){$('reg').style.display='none';$('me').style.display='block';$('mi').innerHTML='Worker: <b>'+esc(W.name)+'</b> ('+esc(W.phone)+')<br>'+esc(TL[W.trade]||W.trade)+(W.eshramUan?' &middot; e-Shram UAN '+esc(W.eshramUan):'');load()}else{$('reg').style.display='block';$('me').style.display='none'}}
+$('rf').onsubmit=function(e){e.preventDefault();var d=$('rp').value.replace(/\D/g,'');if(d.length!=10){msg('Enter a 10-digit mobile number.',1);return false}
+var u=$('ru').value.replace(/\D/g,'');if(u&&u.length!=12){msg('e-Shram UAN must be 12 digits.',1);return false}
+var ph=phoneFmt(d),t=$('rt').value;
+var w={role:'worker',name:$('rn').value.trim(),phone:ph,locality:$('ra').value.trim()||'Mumbai',trade:t,tradeLabel:TL[t],eshramUan:u||null,isEshramLinked:!!u,source:'lite',isVerified:true,createdAt:now()};
+req('POST','app_users',{id:'user_91'+d,role:'worker',name:w.name,phone:ph,locality:w.locality,trade:t,trade_label:TL[t],is_verified:true,created_at:w.createdAt,data:w},function(ok){if(!ok){msg('Could not register. Check internet and try again.',1);return}
+W=w;localStorage.setItem('ks_lite_worker',JSON.stringify(W));msg('Registered! '+(u?'e-Shram UAN saved.':'Tip: add your e-Shram UAN to get more jobs.'));show()},'resolution=merge-duplicates,return=minimal');return false};
+$('lo').onclick=function(){localStorage.removeItem('ks_lite_worker');W=null;show();return false};
+$('rl').onclick=function(){load()};
+function wInfo(){return{id:'worker_'+W.phone.replace(/\D/g,''),authUserId:'lite_'+W.phone.replace(/\D/g,''),name:W.name,phone:W.phone,tradeLabel:W.tradeLabel,locality:W.locality,rating:4.8,eshramUan:W.eshramUan||null}}
+function used(b,by){var n=0,o=b.offers||[];for(var i=0;i<o.length;i++)if(o[i].by==by)n++;return by=='customer'?Math.max(0,n-1):n}
+function note(to,text,type){return{id:'n_'+Date.now()+'_'+Math.floor(Math.random()*1e5),to:to,type:type,text:text,at:now()}}
+var JOBS={};
+function load(){if(!W)return;$('jobs').innerHTML='<small>Loading...</small>';
+req('GET','bookings?select=data&order=created_at.desc&limit=60',null,function(ok,d){if(!ok||!d){$('jobs').innerHTML='<div class="err">Could not load jobs.</div>';return}
+var me=wInfo().authUserId,h='',n=0;JOBS={};
+for(var i=0;i<d.length;i++){var b=d[i].data;if(!b||b.status!='negotiating')continue;if(b.worker&&b.worker.authUserId&&b.worker.authUserId!=me)continue;
+JOBS[b.id]=b;n++;var myTurn=b.lastOfferBy=='customer'||b.customerAgreed,left=MAX-used(b,'worker');
+h+='<div class="job"><b>'+esc(b.categoryName||'Job')+'</b> - '+esc(b.title)+'<br><small>'+esc(b.address)+' &middot; '+esc(b.customerName||'Customer')+'</small><br>Price: <b>Rs '+esc(b.quoteAmount)+'</b> '+(myTurn?'(customer offer)':'(your price, waiting)')+
+(myTurn?'<button onclick="acc(\''+b.id+'\')">Accept Rs '+esc(b.quoteAmount)+'</button>':'')+
+(left>0?'<label>My price (Rs) - '+left+' of '+MAX+' left</label><input id="p_'+b.id+'" type="tel"><button class="b2" onclick="bid(\''+b.id+'\')">Send my price</button>':'<br><small>All 3 price changes used.</small>')+'</div>'}
+$('jobs').innerHTML=n?h:'<small>No new jobs right now. Try again later.</small>'})}
+function save(b,done){var row={id:b.id,created_at:b.createdAt||now(),status:b.status=='negotiating'?'scheduled':b.status,quote_amount:b.quoteAmount,worker_id:b.worker?String(b.worker.id):null,worker_name:b.worker?b.worker.name:null,data:b};
+req('POST','bookings',row,function(ok){if(ok){done()}else msg('Could not save. Try again.',1)},'resolution=merge-duplicates,return=minimal')}
+function bid(id){var b=JOBS[id];if(!b)return;var a=parseInt(($('p_'+id).value||'').replace(/\D/g,''),10);if(!a||a<100){msg('Enter a price of at least Rs 100.',1);return}
+if(used(b,'worker')>=MAX){msg('You can send a new price only 3 times.',1);return}
+var w=wInfo(),job=b.categoryName||'the job',c=(b.customerName||'The customer').split(' ')[0],left=MAX-used(b,'worker')-1;
+b.worker=w;b.quoteAmount=a;b.offers=(b.offers||[]).concat([{by:'worker',amount:a,at:now()}]);b.lastOfferBy='worker';b.customerAgreed=false;
+b.notifications=(b.notifications||[]).concat([note('customer',w.name.split(' ')[0]+' negotiated a price for '+job+': ₹'+a+'. Open My Requests to accept it or send your price.','bid'),note('worker','You sent ₹'+a+' to '+c+' for '+job+'. '+left+' price change'+(left==1?'':'s')+' left.','bid')]);
+save(b,function(){msg('Your price Rs '+a+' was sent to '+esc(c)+'.');load()})}
+function acc(id){var b=JOBS[id];if(!b)return;var w=wInfo(),job=b.categoryName||'your job',c=(b.customerName||'the customer').split(' ')[0];
+b.worker=w;b.status=(b.timingSlot&&b.timingSlot.type=='scheduled')?'scheduled':'en_route';b.acceptedAt=now();b.customerAgreed=true;
+b.notifications=(b.notifications||[]).concat([note('customer',w.name.split(' ')[0]+' accepted your order for '+job+' at ₹'+b.quoteAmount+'.','accepted'),note('worker','You accepted '+c+"'s order for "+job+' at ₹'+b.quoteAmount+'.','accepted')]);
+save(b,function(){msg('Job accepted! Call '+esc(b.customerName||'the customer')+(b.customerPhone?' at '+esc(b.customerPhone):'')+'. Address: '+esc(b.address)+'. Ask for the 4-digit OTP at the door.');load()})}
+show();
+</script>
+</body>
+</html>
