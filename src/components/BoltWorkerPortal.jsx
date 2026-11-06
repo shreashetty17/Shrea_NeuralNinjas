@@ -54,7 +54,7 @@ export const BoltWorkerPortal = ({ onSwitchUser, lang = 'en', currentUser = null
   };
 
   const t = TRANSLATIONS[workerLang] || TRANSLATIONS.en;
-  const workerName = currentUser?.name || 'Rajesh Kumar';
+  const workerName = currentUser?.name || 'Technician';
 
   // Worker Document Vault state
   const [govtIdDoc, setGovtIdDoc] = useState(
@@ -657,7 +657,7 @@ export const BoltWorkerPortal = ({ onSwitchUser, lang = 'en', currentUser = null
                       <div className="grid grid-cols-1 md:grid-cols-12 gap-6 items-center">
                         <div className="md:col-span-6 space-y-2 text-xs">
                           <div className="flex items-center gap-2">
-                            <span className="font-bold text-slate-900 text-sm">{t.workerCustomerLabel || 'Customer'}: Priya Sharma</span>
+                            <span className="font-bold text-slate-900 text-sm">{t.workerCustomerLabel || 'Customer'}: {ord.customerName || 'Customer'}</span>
                             <span className="text-[11px] text-emerald-700 font-semibold bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
                               {t.workerVerifiedClient || 'Verified Client'}
                             </span>
@@ -670,10 +670,10 @@ export const BoltWorkerPortal = ({ onSwitchUser, lang = 'en', currentUser = null
 
                           <div className="flex items-center gap-3 pt-1">
                             <a
-                              href="tel:+919820044102"
+                              href={`tel:${(ord.customerPhone || '').replace(/[^0-9+]/g, '')}`}
                               onClick={(e) => {
                                 e.preventDefault();
-                                alert('Calling customer Priya Sharma at +91 98200 44102 via secure masked call relay.');
+                                alert(`Calling customer ${ord.customerName || ''} at ${ord.customerPhone || 'their number'} via secure masked call relay.`);
                               }}
                               className="px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold text-xs flex items-center gap-1.5 transition-colors border border-slate-200"
                             >
@@ -878,12 +878,12 @@ export const BoltWorkerPortal = ({ onSwitchUser, lang = 'en', currentUser = null
               <div className="flex items-center gap-4">
                 <img
                   src="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=250&q=80"
-                  alt="Rajesh Kumar"
+                  alt={workerName}
                   className="w-16 h-16 rounded-2xl object-cover border-2 border-primary-500 shadow-sm"
                 />
                 <div>
                   <div className="flex items-center gap-2">
-                    <h2 className="text-2xl font-display font-bold text-slate-900">Rajesh Kumar</h2>
+                    <h2 className="text-2xl font-display font-bold text-slate-900">{workerName}</h2>
                     <span className="text-xs bg-emerald-100 text-emerald-800 font-bold px-2 py-0.5 rounded-full border border-emerald-200">
                       Master Plumber
                     </span>
@@ -1079,7 +1079,7 @@ export const BoltWorkerPortal = ({ onSwitchUser, lang = 'en', currentUser = null
                       {activeOrder?.title || 'Kitchen Faucet Cartridge Leakage'}
                     </h3>
                     <p className="text-xs text-slate-500">
-                      {t.workerCustomerLabel || 'Customer'}: <strong>Priya Sharma</strong> • {activeOrder?.address || 'Flat 402, Sea Green Apts, Pali Hill, Bandra West'}
+                      {t.workerCustomerLabel || 'Customer'}: <strong>{activeOrder?.customerName || 'Customer'}</strong> • {activeOrder?.address || 'Flat 402, Sea Green Apts, Pali Hill, Bandra West'}
                     </p>
                   </div>
 
@@ -1110,7 +1110,7 @@ export const BoltWorkerPortal = ({ onSwitchUser, lang = 'en', currentUser = null
                       etaMins: 8
                     }
                   }}
-                  onConfirmCompletion={() => alert('Job marked completed by Rajesh Kumar! Waiting for customer inspection.')}
+                  onConfirmCompletion={() => alert(`Job marked completed by ${workerName}! Waiting for customer inspection.`)}
                   onOpenSos={() => alert('Worker Safety SOS triggered to Mumbai Police.')}
                   selectedWorker={WORKERS_DATABASE[0]}
                   onSelectWorker={() => {}}
@@ -1131,19 +1131,19 @@ export const BoltWorkerPortal = ({ onSwitchUser, lang = 'en', currentUser = null
               currentRole="worker"
               lang={workerLang}
               worker={{
-                name: 'Rajesh Kumar',
+                name: workerName,
                 trade: 'Senior Plumber',
                 photo: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=250&q=80',
                 rating: 4.95,
-                phone: '+91 98201 44521',
-                locality: 'Lokhandwala, Andheri West',
+                phone: currentUser?.phone || '',
+                locality: currentUser?.locality || '',
                 eta: '8 mins away',
                 otp: activeOrder?.startOtp || '4829'
               }}
               customer={{
-                name: 'Priya Sharma',
+                name: activeOrder?.customerName || 'Customer',
                 address: activeOrder?.address || 'Sea Green Apts, Pali Hill, Bandra West',
-                phone: '+91 98200 44102',
+                phone: activeOrder?.customerPhone || '',
                 issue: `${activeOrder?.title || 'Kitchen Diverter Cartridge'} (₹${activeOrder?.quoteAmount || 350} in Escrow)`
               }}
               onOpenMap={() => setWorkerTab('active_job')}

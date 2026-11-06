@@ -26,7 +26,7 @@ export const CustomerWorkerChatPopup = ({
   isOpen = false,
   onClose,
   booking = null,
-  customer = { name: 'Priya Sharma', phone: '+91 98200 44102' },
+  customer = { name: "Customer", phone: "" },
   onOpenMap,
   onCancelBooking,
   lang = 'en'
@@ -204,7 +204,7 @@ export const CustomerWorkerChatPopup = ({
         ];
       } else {
         workerReplies = [
-          'Ji Priya ji, almost there! Just turning into your lane now.',
+          `Ji ${(customer?.name || '').split(' ')[0]} ji, almost there! Just turning into your lane now.`,
           'Understood! Bringing the required tools upstairs.',
           `Noted! Please keep the 4-digit OTP ${booking?.startOtp || '4829'} handy to start work.`,
           'Yes, I have reached near the main entrance gate.'

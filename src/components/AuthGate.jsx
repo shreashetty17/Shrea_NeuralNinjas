@@ -15,7 +15,7 @@ import {
 } from 'lucide-react';
 import { KaamSetuLogo } from './KaamSetuLogo';
 import { playAudioCue } from '../data/mockData';
-import { saveUser, authenticateUser, findUserByAuthId } from '../services/db';
+import { saveUser, findUserByAuthId } from '../services/db';
 import { parseLoginId, signUpWithPassword, signInWithPassword } from '../services/supabase';
 import { TRANSLATIONS } from '../data/translations';
 
@@ -175,35 +175,6 @@ export const AuthGate = ({ onLoginSuccess, initialLang = 'en', onLanguageChange 
     } finally {
       setIsSubmitting(false);
     }
-  };
-
-  const handleQuickDemoCustomer = () => {
-    const user = authenticateUser('+91 98200 44102', '', 'customer') || {
-      role: 'customer',
-      name: 'Priya Sharma',
-      phone: '+91 98200 44102',
-      locality: 'Pali Hill, Bandra West, Mumbai',
-      documentName: 'Aadhaar_Priya_Sharma.pdf',
-      isVerified: true,
-      password: '1234'
-    };
-    playAudioCue('match_success');
-    onLoginSuccess(user);
-  };
-
-  const handleQuickDemoWorker = () => {
-    const user = authenticateUser('+91 98201 44521', '', 'worker') || {
-      role: 'worker',
-      name: 'Rajesh Kumar',
-      phone: '+91 98201 44521',
-      locality: 'Lokhandwala, Andheri West',
-      trade: 'Plumbing',
-      documentName: 'Govt_ID_NSDC_Rajesh.pdf',
-      isVerified: true,
-      password: '1234'
-    };
-    playAudioCue('match_success');
-    onLoginSuccess(user);
   };
 
   return (
@@ -529,43 +500,6 @@ export const AuthGate = ({ onLoginSuccess, initialLang = 'en', onLanguageChange 
               <ArrowRight className="w-4 h-4" />
             </button>
           </form>
-
-          {/* Quick 1-Click Demo Logins for Hackathon / Evaluation */}
-          <div className="pt-4 border-t border-slate-100 space-y-2">
-            <span className="text-[10px] uppercase font-black tracking-widest text-slate-400 block text-center">
-              {t.authInstantDemoAccess || '1-Click Instant Demo Access'}
-            </span>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-              <button
-                type="button"
-                onClick={handleQuickDemoCustomer}
-                className="p-2.5 rounded-xl bg-primary-50 hover:bg-primary-100 border border-primary-200 text-left transition-colors text-xs flex items-center gap-2 group"
-              >
-                <div className="w-7 h-7 rounded-lg bg-primary-600 text-white flex items-center justify-center shrink-0">
-                  <User className="w-3.5 h-3.5" />
-                </div>
-                <div>
-                  <div className="font-bold text-slate-900 line-clamp-1">Priya Sharma</div>
-                  <div className="text-[10px] text-primary-700 font-semibold">{t.authDemoCustomerTag || 'Demo Customer (ID Uploaded)'}</div>
-                </div>
-              </button>
-
-              <button
-                type="button"
-                onClick={handleQuickDemoWorker}
-                className="p-2.5 rounded-xl bg-secondary-50 hover:bg-secondary-100 border border-secondary-200 text-left transition-colors text-xs flex items-center gap-2 group"
-              >
-                <div className="w-7 h-7 rounded-lg bg-secondary-600 text-white flex items-center justify-center shrink-0">
-                  <Briefcase className="w-3.5 h-3.5" />
-                </div>
-                <div>
-                  <div className="font-bold text-slate-900 line-clamp-1">Rajesh Kumar</div>
-                  <div className="text-[10px] text-secondary-700 font-semibold">{t.authDemoWorkerTag || 'Demo Worker (NSDC Verified)'}</div>
-                </div>
-              </button>
-            </div>
-          </div>
 
         </div>
       </div>

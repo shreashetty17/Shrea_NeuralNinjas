@@ -256,6 +256,7 @@ export function App() {
         onClose={() => setIsBookingModalOpen(false)}
         initialCategory={selectedCategoryForBooking}
         onBookingConfirmed={handleBookingConfirmed}
+        currentUser={currentUser}
         lang={lang}
       />
 

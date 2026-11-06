@@ -18,13 +18,13 @@ import { addBooking, cancelBooking } from '../services/db';
 import { CancellationModal } from './CancellationModal';
 import { TRANSLATIONS } from '../data/translations';
 
-export const BoltBookingModal = ({ isOpen, onClose, initialCategory, onBookingConfirmed, lang = 'en' }) => {
+export const BoltBookingModal = ({ isOpen, onClose, initialCategory, onBookingConfirmed, lang = 'en', currentUser }) => {
   const [step, setStep] = useState(1); // 1: Form, 2: Broadcasting, 3: Bids arriving & negotiation, 4: Live tracking
   const [category, setCategory] = useState(initialCategory || SERVICE_CATEGORIES[0]);
-  const [customerName, setCustomerName] = useState('Priya Sharma');
-  const [customerPhone, setCustomerPhone] = useState('+91 98200 44102');
+  const [customerName, setCustomerName] = useState(currentUser?.name || '');
+  const [customerPhone, setCustomerPhone] = useState(currentUser?.phone || currentUser?.email || '');
   const [description, setDescription] = useState('Kitchen diverter cartridge leaking into vanity cabinet.');
-  const [address, setAddress] = useState('Flat 402, Sea Green Apts, Pali Hill, Bandra West');
+  const [address, setAddress] = useState(currentUser?.locality || '');
   
   const t = TRANSLATIONS[lang] || TRANSLATIONS.en;
 
@@ -151,6 +151,8 @@ export const BoltBookingModal = ({ isOpen, onClose, initialCategory, onBookingCo
       title: `${getCategoryName(category)} - ${description.slice(0, 35)}...`,
       description,
       address,
+      customerName: customerName.trim() || currentUser?.name || null,
+      customerPhone: customerPhone.trim() || currentUser?.phone || currentUser?.email || null,
       urgency: timingType === 'immediate' ? t.slotImmediate : `${t.slotScheduled} (${selectedDate})`,
       timingSlot: {
         type: timingType,
